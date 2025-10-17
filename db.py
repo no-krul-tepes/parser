@@ -284,39 +284,6 @@ class Database:
         async with self.pool.acquire() as connection:
             await _execute(connection)
     
-    async def update_schedule_timestamp(
-        self,
-        group_id: int,
-        week_type: WeekType,
-        conn: Optional[asyncpg.Connection] = None
-    ) -> None:
-        """
-        Обновить время последнего парсинга расписания.
-        
-        Args:
-            group_id: ID группы
-            week_type: Тип недели
-        """
-        async def _execute(connection: asyncpg.Connection) -> None:
-            await connection.execute(
-                """
-                INSERT INTO group_schedule_updates (GroupId, WeekType, UpdatedAt)
-                VALUES ($1, $2, $3)
-                ON CONFLICT (GroupId, WeekType)
-                DO UPDATE SET UpdatedAt = $3
-                """,
-                group_id,
-                week_type.value,
-                datetime.now()
-            )
-
-        if conn is not None:
-            await _execute(conn)
-            return
-
-        async with self.pool.acquire() as connection:
-            await _execute(connection)
-
     async def ensure_connected(self) -> None:
         """Гарантирует наличие пула подключений."""
         if self.pool is None:

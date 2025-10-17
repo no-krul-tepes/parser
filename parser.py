@@ -4,6 +4,7 @@
 
 import asyncio
 from datetime import date, datetime, timedelta
+from time import perf_counter
 from typing import Optional
 from html.parser import HTMLParser
 
@@ -237,7 +238,16 @@ async def compare_and_update_lessons(
         incoming=len(new_lessons)
     )
 
+    def _shorten(details: list[dict], limit: int = 10) -> dict:
+        if len(details) <= limit:
+            return {"items": details, "remaining": 0}
+        return {
+            "items": details[:limit],
+            "remaining": len(details) - limit
+        }
+
     async def _process(connection) -> tuple[int, int, int]:
+        phase_started = perf_counter()
         existing_lessons = await db.get_existing_lessons(group_id, week_type, conn=connection)
 
         existing_map = {
@@ -280,6 +290,10 @@ async def compare_and_update_lessons(
         updated = 0
         deleted = 0
 
+        added_details: list[dict] = []
+        updated_details: list[dict] = []
+        deleted_details: list[dict] = []
+
         async with connection.transaction():
             if to_insert:
                 logger.info(
@@ -297,13 +311,13 @@ async def compare_and_update_lessons(
                     conn=connection
                 )
                 added += 1
-                logger.info(
-                    "lesson_added",
-                    group_id=group_id,
-                    lesson=new_lesson.name,
-                    day=new_lesson.day_of_week,
-                    number=new_lesson.lesson_number
-                )
+                added_details.append({
+                    "lesson_id": lesson_id,
+                    "name": new_lesson.name,
+                    "day": new_lesson.day_of_week,
+                    "number": new_lesson.lesson_number,
+                    "teacher": new_lesson.teacher_name
+                })
 
             if to_update:
                 logger.info(
@@ -322,13 +336,13 @@ async def compare_and_update_lessons(
                     conn=connection
                 )
                 updated += 1
-                logger.info(
-                    "lesson_updated",
-                    group_id=group_id,
-                    lesson_id=existing_lesson.lesson_id,
-                    old_name=existing_lesson.name,
-                    new_name=new_lesson.name
-                )
+                updated_details.append({
+                    "lesson_id": existing_lesson.lesson_id,
+                    "old_name": existing_lesson.name,
+                    "new_name": new_lesson.name,
+                    "day": new_lesson.day_of_week,
+                    "number": new_lesson.lesson_number
+                })
 
             if to_delete:
                 logger.info(
@@ -346,12 +360,12 @@ async def compare_and_update_lessons(
                     conn=connection
                 )
                 deleted += 1
-                logger.info(
-                    "lesson_deleted",
-                    group_id=group_id,
-                    lesson_id=existing_lesson.lesson_id,
-                    lesson=existing_lesson.name
-                )
+                deleted_details.append({
+                    "lesson_id": existing_lesson.lesson_id,
+                    "name": existing_lesson.name,
+                    "day": existing_lesson.day_of_week,
+                    "number": existing_lesson.lesson_number
+                })
 
         logger.info(
             "lessons_transaction_completed",
@@ -359,7 +373,11 @@ async def compare_and_update_lessons(
             week_type=week_type.value,
             added=added,
             updated=updated,
-            deleted=deleted
+            deleted=deleted,
+            added_lessons=_shorten(added_details),
+            updated_lessons=_shorten(updated_details),
+            deleted_lessons=_shorten(deleted_details),
+            duration=round(perf_counter() - phase_started, 4)
         )
 
         return added, updated, deleted
@@ -381,8 +399,9 @@ async def parse_group(group_id: int) -> ParseResult:
     Returns:
         ParseResult с результатами парсинга
     """
-    logger.info("parse_group_started", group_id=group_id)
     start_time = datetime.now()
+    timer_start = perf_counter()
+    logger.info("parse_group_started", group_id=group_id)
 
     try:
         db = await get_database()
@@ -412,9 +431,6 @@ async def parse_group(group_id: int) -> ParseResult:
                 db, group_id, odd_lessons, WeekType.ODD, conn=conn
             )
 
-            await db.update_schedule_timestamp(group_id, WeekType.EVEN, conn=conn)
-            await db.update_schedule_timestamp(group_id, WeekType.ODD, conn=conn)
-
         # Формируем результат
         total_added = even_added + odd_added
         total_updated = even_updated + odd_updated
@@ -435,6 +451,7 @@ async def parse_group(group_id: int) -> ParseResult:
             "parse_group_completed",
             group_id=group_id,
             duration=duration,
+            total_seconds=round(perf_counter() - timer_start, 4),
             added=total_added,
             updated=total_updated,
             deleted=total_deleted

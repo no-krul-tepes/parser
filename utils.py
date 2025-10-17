@@ -145,33 +145,36 @@ def parse_lesson_info(raw_text: str) -> dict[str, Optional[str]]:
 
 def get_week_type_for_date(target_date: date) -> str:
     """
-    Определение типа недели (четная/нечетная) для даты.
-    
-    Предполагается, что учебный год начинается 1 сентября,
-    и первая неделя - четная.
-    
+    Определение типа недели по учебному году.
+
+    Считаем, что отсчет ведется от недели 1-7 сентября как нечетной,
+    далее недели чередуются.
+
     Args:
         target_date: Дата для определения типа недели
-        
+
     Returns:
         "even" или "odd"
     """
-    # Определяем начало учебного года
-    year = target_date.year
+    academic_year = target_date.year
     if target_date.month < 9:
-        year -= 1
-    
-    start_of_year = date(year, 9, 1)
-    
-    # Находим ближайший понедельник
-    days_to_monday = start_of_year.weekday()
-    first_monday = start_of_year - timedelta(days=days_to_monday)
-    
-    # Вычисляем номер недели
-    days_diff = (target_date - first_monday).days
-    week_number = days_diff // 7 + 1
-    
-    return "even" if week_number % 2 == 0 else "odd"
+        academic_year -= 1
+
+    start_week = date(academic_year, 9, 1)
+    start_weekday = start_week.weekday()
+    if start_weekday != 0:
+        days_to_monday = (7 - start_weekday) % 7
+        if days_to_monday == 0:
+            days_to_monday = 7
+        start_week_monday = start_week - timedelta(days=start_weekday)
+    else:
+        start_week_monday = start_week
+
+    days_diff = (target_date - start_week_monday).days
+    week_number = days_diff // 7
+
+    is_odd = week_number % 2 == 0
+    return "odd" if is_odd else "even"
 
 
 def get_monday_of_week(target_date: date) -> date:
