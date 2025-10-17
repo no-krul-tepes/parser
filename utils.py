@@ -73,20 +73,21 @@ def normalize_text(text: str) -> str:
 def parse_lesson_info(raw_text: str) -> dict[str, Optional[str]]:
     """
     Извлечение информации об уроке из сырого текста.
-    
+
     Формат: "тип.Название ПРЕПОДАВАТЕЛЬ а.АУДИТОРИЯ"
     Примеры:
         "лек.История МИХЕЕВ Б.В. а.15-466"
         "пр.Иностранный язык- 1 п/г ЦЫБИКОВА Л.Б. а.0331"
-    
+        "лаб.Основы проект. деят-ти АНГАРХАЕВА Ю.П. а.0107"
+
     Args:
         raw_text: Сырой текст из HTML
-        
+
     Returns:
         Словарь с полями: lesson_type, name, teacher, cabinet
     """
     text = normalize_text(raw_text)
-    
+
     # Пустой урок
     if text == '_' or not text:
         return {
@@ -95,53 +96,42 @@ def parse_lesson_info(raw_text: str) -> dict[str, Optional[str]]:
             "teacher": None,
             "cabinet": None,
         }
-    
+
     result = {
         "lesson_type": None,
         "name": None,
         "teacher": None,
         "cabinet": None,
     }
-    
+
     # Извлечение типа занятия (лек., пр., лаб.)
     type_match = re.match(r'^(лек|пр|лаб)\.', text)
     if type_match:
         result["lesson_type"] = type_match.group(1)
         text = text[len(type_match.group(0)):].strip()
-    
+
     # Извлечение аудитории (а.НОМЕР)
     cabinet_match = re.search(r'\s+а\.([^\s]+)', text)
     if cabinet_match:
         result["cabinet"] = cabinet_match.group(1)
         text = text[:cabinet_match.start()] + text[cabinet_match.end():]
-    
-    # Оставшийся текст разделяем на название и преподавателя
-    # Преподаватель обычно в верхнем регистре
-    parts = text.rsplit(maxsplit=2)
-    
-    if len(parts) >= 2:
-        # Ищем фамилию (обычно последнее слово в верхнем регистре)
-        teacher_parts = []
-        name_parts = []
-        
-        for i in range(len(parts) - 1, -1, -1):
-            part = parts[i]
-            # Если слово содержит точки или в верхнем регистре - вероятно преподаватель
-            if '.' in part or (part.isupper() and len(part) > 1):
-                teacher_parts.insert(0, part)
-            else:
-                name_parts = parts[:i + 1]
-                break
-        
-        if name_parts:
-            result["name"] = ' '.join(name_parts)
-        if teacher_parts:
-            result["teacher"] = ' '.join(teacher_parts)
-    elif parts:
-        result["name"] = ' '.join(parts)
-    
-    return result
+        text = text.strip()
 
+    # Теперь разделяем название и преподавателя
+    # Преподаватель - это обычно 2-3 слова в конце в формате:
+    # ФАМИЛИЯ И.О. или ФАМИЛИЯ И. или просто ФАМИЛИЯ
+    # Паттерн: заглавные буквы, возможно с точками и пробелами
+    teacher_pattern = r'\s+([А-ЯЁ]+(?:\s+[А-ЯЁ]\.(?:\s*[А-ЯЁ]\.)?)?)$'
+    teacher_match = re.search(teacher_pattern, text)
+
+    if teacher_match:
+        result["teacher"] = teacher_match.group(1).strip()
+        result["name"] = text[:teacher_match.start()].strip()
+    else:
+        # Если не нашли преподавателя по паттерну, всё идёт в название
+        result["name"] = text.strip()
+
+    return result
 
 def get_week_type_for_date(target_date: date) -> str:
     """

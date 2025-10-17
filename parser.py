@@ -37,8 +37,11 @@ class ScheduleHTMLParser(HTMLParser):
         self.in_row = False
         self.in_cell = False
         self.current_row = []
+        self.current_row_flags: list[dict[str, bool]] = []
         self.rows = []
+        self.row_metadata: list[dict[str, bool]] = []
         self.cell_data = []
+        self.cell_has_blue = False
         self.group_name: Optional[str] = None
 
     def handle_starttag(self, tag: str, attrs: list) -> None:
@@ -49,14 +52,20 @@ class ScheduleHTMLParser(HTMLParser):
             case "tr" if self.in_table:
                 self.in_row = True
                 self.current_row = []
+                self.current_row_flags = []
             case "td" if self.in_row:
                 self.in_cell = True
                 self.cell_data = []
+                self.cell_has_blue = False
             case "font":
                 # Извлекаем название группы из цветного шрифта
                 for attr, value in attrs:
-                    if attr == "color" and value == "#ff00ff":
-                        self.in_cell = True
+                    if attr == "color":
+                        color = value.lower()
+                        if color == "#ff00ff":
+                            self.in_cell = True
+                        if color == "#0000ff" and self.in_cell:
+                            self.cell_has_blue = True
 
     def handle_endtag(self, tag: str) -> None:
         """Обработка закрывающего тега."""
@@ -66,12 +75,18 @@ class ScheduleHTMLParser(HTMLParser):
             case "tr" if self.in_row:
                 self.in_row = False
                 if self.current_row:
+                    row_flag = {
+                        "has_blue": any(flag.get("has_blue", False) for flag in self.current_row_flags)
+                    }
                     self.rows.append(self.current_row)
+                    self.row_metadata.append(row_flag)
             case "td" | "font" if self.in_cell:
                 self.in_cell = False
                 cell_text = ''.join(self.cell_data).strip()
                 self.current_row.append(cell_text)
+                self.current_row_flags.append({"has_blue": self.cell_has_blue})
                 self.cell_data = []
+                self.cell_has_blue = False
 
     def handle_data(self, data: str) -> None:
         """Обработка текстовых данных."""
@@ -81,7 +96,7 @@ class ScheduleHTMLParser(HTMLParser):
             # Следующий текст после этой фразы - название группы
             pass
 
-    def get_schedule_data(self) -> list[list[str]]:
+    def get_schedule_data(self) -> list[tuple[list[str], dict[str, bool]]]:
         """
         Получить распарсенные данные расписания.
 
@@ -89,7 +104,12 @@ class ScheduleHTMLParser(HTMLParser):
             Список строк таблицы, каждая строка - список ячеек
         """
         # Пропускаем первые 2 строки (заголовки "Пары" и "Время")
-        return self.rows[2:] if len(self.rows) > 2 else []
+        if len(self.rows) <= 2:
+            return []
+        return [
+            (row, self.row_metadata[idx])
+            for idx, row in enumerate(self.rows[2:], start=2)
+        ]
 
 
 async def fetch_schedule_html(url: str) -> str:
@@ -145,18 +165,18 @@ def parse_schedule_html(html: str, group_id: int) -> tuple[list[Lesson], list[Le
     monday = get_monday_of_week(today)
 
     # Обрабатываем строки расписания
-    current_week_type = WeekType.EVEN
-
-    for row in schedule_data:
+    for row, metadata in schedule_data:
         if not row or len(row) < 2:
             continue
 
         # Первая ячейка - день недели
         day_str = normalize_text(row[0]).lower()
 
-        # Определяем тип недели по цвету (синий = нечетная неделя)
-        # В HTML синий цвет указывает на нечетную неделю
-        is_odd_week = any('#0000ff' in str(cell) for cell in row)
+        if not day_str:
+            continue
+
+        is_odd_week = metadata.get("has_blue", False)
+        row_cells = row[1:]
         week_type = WeekType.ODD if is_odd_week else WeekType.EVEN
 
         # Получаем номер дня недели
@@ -169,8 +189,7 @@ def parse_schedule_html(html: str, group_id: int) -> tuple[list[Lesson], list[Le
         lesson_date = monday + timedelta(days=days_offset)
 
         # Обрабатываем каждую пару (со 2-й ячейки)
-        for lesson_number in range(1, min(7, len(row) - 1)):
-            cell_text = row[lesson_number]
+        for lesson_number, cell_text in enumerate(row_cells, start=1):
 
             # Пропускаем пустые уроки
             if not cell_text or cell_text.strip() in ('_', ''):
