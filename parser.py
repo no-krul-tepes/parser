@@ -1,5 +1,6 @@
 """
 Модуль для парсинга расписания учебных групп.
+Улучшенная версия с обработкой подгрупп, множественных преподавателей и всех edge cases.
 """
 
 import asyncio
@@ -101,7 +102,7 @@ class ScheduleHTMLParser(HTMLParser):
         Получить распарсенные данные расписания.
 
         Returns:
-            Список строк таблицы, каждая строка - список ячеек
+            Список строк таблицы, каждая строка - список ячеек с метаданными
         """
         # Пропускаем первые 2 строки (заголовки "Пары" и "Время")
         if len(self.rows) <= 2:
@@ -145,6 +146,12 @@ def parse_schedule_html(html: str, group_id: int) -> tuple[list[Lesson], list[Le
     """
     Парсинг HTML расписания в структурированные данные.
 
+    Улучшенная версия с поддержкой:
+    - Подгрупп
+    - Множественных преподавателей
+    - Комментариев
+    - Всех edge cases
+
     Args:
         html: HTML содержимое
         group_id: ID группы
@@ -164,15 +171,24 @@ def parse_schedule_html(html: str, group_id: int) -> tuple[list[Lesson], list[Le
     today = date.today()
     monday = get_monday_of_week(today)
 
+    # Счётчики для логирования
+    total_processed = 0
+    skipped_empty = 0
+    skipped_invalid = 0
+    with_subgroups = 0
+    with_multiple_teachers = 0
+
     # Обрабатываем строки расписания
-    for row, metadata in schedule_data:
+    for row_idx, (row, metadata) in enumerate(schedule_data):
         if not row or len(row) < 2:
+            logger.debug("skipped_row_too_short", row_idx=row_idx, row_len=len(row) if row else 0)
             continue
 
         # Первая ячейка - день недели
         day_str = normalize_text(row[0]).lower()
 
         if not day_str:
+            logger.debug("skipped_row_no_day", row_idx=row_idx)
             continue
 
         is_odd_week = metadata.get("has_blue", False)
@@ -182,6 +198,7 @@ def parse_schedule_html(html: str, group_id: int) -> tuple[list[Lesson], list[Le
         # Получаем номер дня недели
         day_of_week = DAY_MAPPING.get(day_str[:3])
         if not day_of_week:
+            logger.warning("unknown_day_of_week", day_str=day_str, row_idx=row_idx)
             continue
 
         # Рассчитываем дату урока
@@ -190,35 +207,72 @@ def parse_schedule_html(html: str, group_id: int) -> tuple[list[Lesson], list[Le
 
         # Обрабатываем каждую пару (со 2-й ячейки)
         for lesson_number, cell_text in enumerate(row_cells, start=1):
+            total_processed += 1
 
             # Пропускаем пустые уроки
             if not cell_text or cell_text.strip() in ('_', ''):
+                skipped_empty += 1
                 continue
 
-            # Парсим информацию об уроке
+            # Парсим информацию об уроке с помощью улучшенной функции
             lesson_info = parse_lesson_info(cell_text)
 
-            if not lesson_info['name']:
+            if not lesson_info.name:
+                skipped_invalid += 1
+                logger.debug(
+                    "lesson_no_name",
+                    raw_text=cell_text,
+                    day=day_of_week,
+                    lesson_number=lesson_number,
+                    week_type=week_type.value
+                )
                 continue
 
             # Получаем время урока
             start_time, end_time = LESSON_TIMES.get(lesson_number, (None, None))
             if not start_time:
+                logger.warning(
+                    "invalid_lesson_number",
+                    lesson_number=lesson_number,
+                    day=day_of_week
+                )
                 continue
+
+            # Собираем данные о преподавателях и аудиториях
+            # Объединяем множественных преподавателей через точку с запятой
+            teacher_name = '; '.join(lesson_info.teachers) if lesson_info.teachers else None
+
+            # Берём первую аудиторию как основную (для обратной совместимости)
+            cabinet_number = lesson_info.cabinets[0] if lesson_info.cabinets else None
+
+            # Логируем интересные случаи
+            if lesson_info.subgroup:
+                with_subgroups += 1
+            if len(lesson_info.teachers) > 1:
+                with_multiple_teachers += 1
+                logger.debug(
+                    "multiple_teachers_found",
+                    name=lesson_info.name,
+                    teachers=lesson_info.teachers,
+                    cabinets=lesson_info.cabinets,
+                    day=day_of_week,
+                    lesson_number=lesson_number
+                )
 
             # Создаем объект урока
             lesson = Lesson(
                 group_id=group_id,
-                name=lesson_info['name'],
+                name=lesson_info.name,
                 lesson_date=lesson_date,
                 day_of_week=day_of_week,
                 lesson_number=lesson_number,
                 start_time=start_time,
                 end_time=end_time,
-                teacher_name=lesson_info['teacher'],
-                cabinet_number=lesson_info['cabinet'],
+                teacher_name=teacher_name,
+                cabinet_number=cabinet_number,
                 week_type=week_type,
-                raw_text=cell_text
+                raw_text=cell_text,
+                subgroup=lesson_info.subgroup  # Теперь поддерживаем подгруппы!
             )
 
             # Добавляем в соответствующий список
@@ -226,6 +280,19 @@ def parse_schedule_html(html: str, group_id: int) -> tuple[list[Lesson], list[Le
                 even_lessons.append(lesson)
             else:
                 odd_lessons.append(lesson)
+
+    # Логируем статистику парсинга
+    logger.info(
+        "schedule_parsing_stats",
+        group_id=group_id,
+        total_cells_processed=total_processed,
+        skipped_empty=skipped_empty,
+        skipped_invalid=skipped_invalid,
+        lessons_with_subgroups=with_subgroups,
+        lessons_with_multiple_teachers=with_multiple_teachers,
+        even_lessons=len(even_lessons),
+        odd_lessons=len(odd_lessons)
+    )
 
     return even_lessons, odd_lessons
 
@@ -240,11 +307,14 @@ async def compare_and_update_lessons(
     """
     Сравнить новые уроки с существующими и обновить БД.
 
+    Улучшенная версия с учётом подгрупп при сравнении.
+
     Args:
         db: Экземпляр базы данных
         group_id: ID группы
         new_lessons: Новые распарсенные уроки
         week_type: Тип недели
+        conn: Опциональное существующее соединение
 
     Returns:
         Кортеж (добавлено, обновлено, удалено)
@@ -258,6 +328,7 @@ async def compare_and_update_lessons(
     )
 
     def _shorten(details: list[dict], limit: int = 10) -> dict:
+        """Сократить список деталей для логирования."""
         if len(details) <= limit:
             return {"items": details, "remaining": 0}
         return {
@@ -269,13 +340,15 @@ async def compare_and_update_lessons(
         phase_started = perf_counter()
         existing_lessons = await db.get_existing_lessons(group_id, week_type, conn=connection)
 
+        # Создаём маппинг с учётом подгруппы
+        # Ключ: (day_of_week, lesson_number, subgroup)
         existing_map = {
-            (l.day_of_week, l.lesson_number): l
+            (l.day_of_week, l.lesson_number, l.subgroup): l
             for l in existing_lessons
         }
 
         new_map = {
-            (l.day_of_week, l.lesson_number): l
+            (l.day_of_week, l.lesson_number, l.subgroup): l
             for l in new_lessons
         }
 
@@ -283,6 +356,7 @@ async def compare_and_update_lessons(
         to_update = []
         to_delete = []
 
+        # Находим новые и изменённые уроки
         for key, new_lesson in new_map.items():
             existing_lesson = existing_map.get(key)
             if existing_lesson is None:
@@ -291,6 +365,7 @@ async def compare_and_update_lessons(
                 new_lesson.lesson_id = existing_lesson.lesson_id
                 to_update.append((existing_lesson, new_lesson))
 
+        # Находим удалённые уроки
         for key, existing_lesson in existing_map.items():
             if key not in new_map:
                 to_delete.append(existing_lesson)
@@ -313,7 +388,9 @@ async def compare_and_update_lessons(
         updated_details: list[dict] = []
         deleted_details: list[dict] = []
 
+        # Выполняем операции в транзакции
         async with connection.transaction():
+            # Вставка новых уроков
             if to_insert:
                 logger.info(
                     "lessons_insert_batch_start",
@@ -326,7 +403,12 @@ async def compare_and_update_lessons(
                 await db.log_schedule_change(
                     lesson_id,
                     ChangeType.NEW,
-                    new_data={"name": new_lesson.name, "teacher": new_lesson.teacher_name},
+                    new_data={
+                        "name": new_lesson.name,
+                        "teacher": new_lesson.teacher_name,
+                        "subgroup": new_lesson.subgroup,
+                        "cabinet": new_lesson.cabinet_number
+                    },
                     conn=connection
                 )
                 added += 1
@@ -335,9 +417,11 @@ async def compare_and_update_lessons(
                     "name": new_lesson.name,
                     "day": new_lesson.day_of_week,
                     "number": new_lesson.lesson_number,
-                    "teacher": new_lesson.teacher_name
+                    "teacher": new_lesson.teacher_name,
+                    "subgroup": new_lesson.subgroup
                 })
 
+            # Обновление существующих уроков
             if to_update:
                 logger.info(
                     "lessons_update_batch_start",
@@ -350,8 +434,18 @@ async def compare_and_update_lessons(
                 await db.log_schedule_change(
                     existing_lesson.lesson_id,
                     ChangeType.UPDATE,
-                    old_data={"name": existing_lesson.name, "teacher": existing_lesson.teacher_name},
-                    new_data={"name": new_lesson.name, "teacher": new_lesson.teacher_name},
+                    old_data={
+                        "name": existing_lesson.name,
+                        "teacher": existing_lesson.teacher_name,
+                        "subgroup": existing_lesson.subgroup,
+                        "cabinet": existing_lesson.cabinet_number
+                    },
+                    new_data={
+                        "name": new_lesson.name,
+                        "teacher": new_lesson.teacher_name,
+                        "subgroup": new_lesson.subgroup,
+                        "cabinet": new_lesson.cabinet_number
+                    },
                     conn=connection
                 )
                 updated += 1
@@ -360,9 +454,11 @@ async def compare_and_update_lessons(
                     "old_name": existing_lesson.name,
                     "new_name": new_lesson.name,
                     "day": new_lesson.day_of_week,
-                    "number": new_lesson.lesson_number
+                    "number": new_lesson.lesson_number,
+                    "subgroup": new_lesson.subgroup
                 })
 
+            # Удаление отсутствующих уроков
             if to_delete:
                 logger.info(
                     "lessons_delete_batch_start",
@@ -375,7 +471,11 @@ async def compare_and_update_lessons(
                 await db.log_schedule_change(
                     existing_lesson.lesson_id,
                     ChangeType.DELETE,
-                    old_data={"name": existing_lesson.name, "teacher": existing_lesson.teacher_name},
+                    old_data={
+                        "name": existing_lesson.name,
+                        "teacher": existing_lesson.teacher_name,
+                        "subgroup": existing_lesson.subgroup
+                    },
                     conn=connection
                 )
                 deleted += 1
@@ -383,7 +483,8 @@ async def compare_and_update_lessons(
                     "lesson_id": existing_lesson.lesson_id,
                     "name": existing_lesson.name,
                     "day": existing_lesson.day_of_week,
-                    "number": existing_lesson.lesson_number
+                    "number": existing_lesson.lesson_number,
+                    "subgroup": existing_lesson.subgroup
                 })
 
         logger.info(
@@ -441,6 +542,7 @@ async def parse_group(group_id: int) -> ParseResult:
         # Парсим расписание
         even_lessons, odd_lessons = parse_schedule_html(html, group_id)
 
+        # Обновляем БД в рамках одного соединения
         async with db.acquire_connection() as conn:
             even_added, even_updated, even_deleted = await compare_and_update_lessons(
                 db, group_id, even_lessons, WeekType.EVEN, conn=conn
