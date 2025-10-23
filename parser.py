@@ -242,8 +242,8 @@ def parse_schedule_html(html: str, group_id: int) -> tuple[list[Lesson], list[Le
             # Объединяем множественных преподавателей через точку с запятой
             teacher_name = '; '.join(lesson_info.teachers) if lesson_info.teachers else None
 
-            # Берём первую аудиторию как основную (для обратной совместимости)
-            cabinet_number = lesson_info.cabinets[0] if lesson_info.cabinets else None
+            # Объединяем множественные аудитории через точку с запятой (аналогично преподавателям)
+            cabinet_number = '; '.join(lesson_info.cabinets) if lesson_info.cabinets else None
 
             # Логируем интересные случаи
             if lesson_info.subgroup:

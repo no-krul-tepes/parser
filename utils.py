@@ -89,10 +89,6 @@ def normalize_text(text: str) -> str:
 
     Returns:
         Нормализованный текст
-
-    Examples:
-        >>> normalize_text("История  МИХЕЕВ Б.В.   а.0426")
-        'История МИХЕЕВ Б.В. а.0426'
     """
     # Удаляем начальные/конечные пробелы
     text = text.strip()
@@ -108,12 +104,6 @@ def extract_lesson_type(text: str) -> tuple[Optional[str], str]:
 
     Returns:
         Кортеж (тип_занятия, оставшийся_текст)
-
-    Examples:
-        >>> extract_lesson_type("лек.История МИХЕЕВ Б.В.")
-        ('лек', 'История МИХЕЕВ Б.В.')
-        >>> extract_lesson_type("История МИХЕЕВ Б.В.")
-        (None, 'История МИХЕЕВ Б.В.')
     """
     match = LessonPatterns.LESSON_TYPE.match(text)
     if match:
@@ -132,10 +122,6 @@ def extract_comment_suffix(text: str) -> tuple[Optional[str], str]:
 
     Returns:
         Кортеж (комментарий, оставшийся_текст)
-
-    Examples:
-        >>> extract_comment_suffix("Основы безопасности ШАНТАГАРОВА Н.В. а.8236 и/дэкол")
-        ('и/дэкол', 'Основы безопасности ШАНТАГАРОВА Н.В. а.8236')
     """
     match = LessonPatterns.COMMENT_SUFFIX.search(text)
     if match:
@@ -154,14 +140,6 @@ def extract_subgroup(text: str) -> tuple[Optional[int], str]:
 
     Returns:
         Кортеж (номер_подгруппы, название_без_подгруппы)
-
-    Examples:
-        >>> extract_subgroup("Информатика- 1 п/г")
-        (1, 'Информатика')
-        >>> extract_subgroup("Информатика- 2 п/г")
-        (2, 'Информатика')
-        >>> extract_subgroup("Информатика")
-        (None, 'Информатика')
     """
     match = LessonPatterns.SUBGROUP.search(text)
     if match:
@@ -183,10 +161,6 @@ def extract_multiple_teachers_cabinets(text: str) -> tuple[list[tuple[str, str]]
 
     Returns:
         Кортеж (список_пар_(преподаватель, аудитория), оставшийся_текст)
-
-    Examples:
-        >>> extract_multiple_teachers_cabinets("Иностранный язык ДАНЗАНОВА С.В. а.0107   БАЗАРОВА М.Д. - а.718а")
-        ([('БАЗАРОВА М.Д.', '718а')], 'Иностранный язык ДАНЗАНОВА С.В. а.0107')
     """
     teachers_cabinets = []
     remaining = text
@@ -217,12 +191,6 @@ def extract_cabinet(text: str) -> tuple[Optional[str], str]:
 
     Returns:
         Кортеж (аудитория, оставшийся_текст)
-
-    Examples:
-        >>> extract_cabinet("История МИХЕЕВ Б.В. а.0426")
-        ('0426', 'История МИХЕЕВ Б.В.')
-        >>> extract_cabinet("История МИХЕЕВ Б.В. а.0316и/д")
-        ('0316и/д', 'История МИХЕЕВ Б.В.')
     """
     match = LessonPatterns.CABINET.search(text)
     if match:
@@ -245,12 +213,6 @@ def extract_teacher(text: str) -> tuple[Optional[str], str]:
 
     Returns:
         Кортеж (преподаватель, название_дисциплины)
-
-    Examples:
-        >>> extract_teacher("История МИХЕЕВ Б.В.")
-        ('МИХЕЕВ Б.В.', 'История')
-        >>> extract_teacher("Физическая культура и спорт ФКС 21")
-        ('ФКС 21', 'Физическая культура и спорт')
     """
     # Нормализуем пробелы перед поиском
     text = re.sub(r'\s+', ' ', text).strip()
@@ -299,19 +261,6 @@ def parse_lesson_info(raw_text: str) -> LessonInfo:
 
     Returns:
         LessonInfo с извлечёнными данными
-
-    Examples:
-        >>> info = parse_lesson_info("лек.История МИХЕЕВ Б.В. а.0426")
-        >>> (info.lesson_type, info.name, info.teachers[0], info.cabinets[0])
-        ('лек', 'История', 'МИХЕЕВ Б.В.', '0426')
-
-        >>> info = parse_lesson_info("лаб.Информатика- 1 п/г ПАВЛОВА И.А. а.15-357-2")
-        >>> (info.name, info.subgroup, info.teachers[0])
-        ('Информатика', 1, 'ПАВЛОВА И.А.')
-
-        >>> info = parse_lesson_info("пр.Иностранный язык ДАНЗАНОВА С.В. а.0107   БАЗАРОВА М.Д. - а.718а")
-        >>> len(info.teachers), len(info.cabinets)
-        (2, 2)
     """
     text = normalize_text(raw_text)
 
