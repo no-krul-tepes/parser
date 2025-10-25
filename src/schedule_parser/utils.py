@@ -1,22 +1,20 @@
 """
-Вспомогательные функции и утилиты для парсинга расписания.
-Улучшенная версия с обработкой всех edge cases.
+Утилиты для парсинга расписания.
+Содержит функции для обработки текста, времени и других вспомогательных операций.
 """
-
-import asyncio
 import logging
 import re
+import asyncio
 from datetime import date, time, timedelta
-from typing import Optional, Callable, TypeVar, Any
 from dataclasses import dataclass
-
+from typing import Optional, Callable, TypeVar, ParamSpec
 import structlog
+
+from .config import get_config
 
 logger = structlog.get_logger()
 
-T = TypeVar('T')
-
-# Маппинг дней недели из сокращений
+# Маппинг дней недели
 DAY_MAPPING = {
     "пнд": 1,
     "втр": 2,
@@ -24,9 +22,10 @@ DAY_MAPPING = {
     "чтв": 4,
     "птн": 5,
     "сбт": 6,
+    "вск": 7,
 }
 
-# Стандартное расписание звонков
+# Время начала и окончания пар
 LESSON_TIMES = {
     1: (time(9, 0), time(10, 35)),
     2: (time(10, 45), time(12, 20)),
@@ -36,53 +35,47 @@ LESSON_TIMES = {
     6: (time(18, 5), time(19, 40)),
 }
 
+# Типы занятий
+LESSON_TYPE_PREFIXES = {
+    "лек.": "Лекция",
+    "пр.": "Практика",
+    "лаб.": "Лабораторная",
+    "сем.": "Семинар",
+    "конс.": "Консультация",
+}
+
 
 @dataclass
 class LessonInfo:
-    """Структурированная информация об уроке."""
-    lesson_type: Optional[str] = None  # лек, пр, лаб
-    name: Optional[str] = None
-    teachers: list[str] = None  # Список преподавателей
-    cabinets: list[str] = None  # Список аудиторий
-    subgroup: Optional[int] = None  # Номер подгруппы (1 или 2)
-    comment: Optional[str] = None  # Комментарии типа "и/дэкол"
+    """
+    Структура с распарсенной информацией об уроке.
+
+    Attributes:
+        name: Название дисциплины (без префикса типа занятия)
+        lesson_type: Тип занятия (лекция, практика и т.д.)
+        teachers: Список преподавателей
+        cabinets: Список аудиторий
+        subgroup: Номер подгруппы (1, 2) или None
+        comment: Дополнительный комментарий (например, "и/д", "и/дэкол")
+    """
+    name: str
+    lesson_type: Optional[str] = None
+    teachers: list[str] = None
+    cabinets: list[str] = None
+    subgroup: Optional[int] = None
+    comment: Optional[str] = None
 
     def __post_init__(self):
+        """Инициализация пустых списков."""
         if self.teachers is None:
             self.teachers = []
         if self.cabinets is None:
             self.cabinets = []
 
 
-# Компилируем regex-паттерны один раз для производительности
-class LessonPatterns:
-    """Скомпилированные regex-паттерны для парсинга."""
-
-    # Тип занятия в начале
-    LESSON_TYPE = re.compile(r'^(лек|пр|лаб)\.')
-
-    # Подгруппа в названии: "- 1 п/г" или "-1п/г"
-    SUBGROUP = re.compile(r'-\s*(\d)\s*п/г')
-
-    # Комментарий в конце (и/д, и/дэкол и т.п.)
-    COMMENT_SUFFIX = re.compile(r'\s+(и/д\S*)$')
-
-    # Множественные преподаватели через много пробелов
-    # Формат: "ИМЯ1 И.О.   ИМЯ2 И.О. - а.XXX"
-    MULTIPLE_TEACHERS = re.compile(
-        r'\s{2,}([А-ЯЁ]+(?:\s+[А-ЯЁ]\.(?:\s*[А-ЯЁ]\.)?)?)\s+-\s+а\.([^\s]+)'
-    )
-
-    # Основная аудитория
-    CABINET = re.compile(r'\s+а\.([^\s]+)')
-
-    # Множественные пробелы
-    MULTIPLE_SPACES = re.compile(r'\s{2,}')
-
-
 def normalize_text(text: str) -> str:
     """
-    Нормализация текста: удаление лишних пробелов и символов.
+    Нормализация текста: удаление лишних пробелов и спецсимволов.
 
     Args:
         text: Исходный текст
@@ -90,229 +83,270 @@ def normalize_text(text: str) -> str:
     Returns:
         Нормализованный текст
     """
-    # Удаляем начальные/конечные пробелы
-    text = text.strip()
-    return text
+    if not text:
+        return ""
+
+    # Удаляем неразрывные пробелы и другие невидимые символы
+    text = text.replace('\xa0', ' ').replace('\u200b', '')
+
+    # Удаляем множественные пробелы
+    text = re.sub(r'\s+', ' ', text)
+
+    return text.strip()
 
 
 def extract_lesson_type(text: str) -> tuple[Optional[str], str]:
     """
-    Извлечь тип занятия из начала текста.
+    Извлекает тип занятия из текста.
 
     Args:
-        text: Текст урока
+        text: Текст с возможным префиксом типа занятия
 
     Returns:
         Кортеж (тип_занятия, оставшийся_текст)
     """
-    match = LessonPatterns.LESSON_TYPE.match(text)
-    if match:
-        lesson_type = match.group(1)
-        remaining = text[match.end():].strip()
-        return lesson_type, remaining
-    return None, text
+    text = text.strip()
 
+    for prefix, lesson_type in LESSON_TYPE_PREFIXES.items():
+        if text.lower().startswith(prefix):
+            return lesson_type, text[len(prefix):].strip()
 
-def extract_comment_suffix(text: str) -> tuple[Optional[str], str]:
-    """
-    Извлечь комментарий из конца текста.
-
-    Args:
-        text: Текст урока
-
-    Returns:
-        Кортеж (комментарий, оставшийся_текст)
-    """
-    match = LessonPatterns.COMMENT_SUFFIX.search(text)
-    if match:
-        comment = match.group(1)
-        remaining = text[:match.start()].strip()
-        return comment, remaining
     return None, text
 
 
 def extract_subgroup(text: str) -> tuple[Optional[int], str]:
     """
-    Извлечь номер подгруппы из названия.
+    Извлекает номер подгруппы из текста.
+
+    Поддерживаемые форматы:
+    - "1 п/г", "2 п/г"
+    - "- 1 п/г", "- 2 п/г"
+    - "1п/г", "2п/г"
 
     Args:
-        text: Название дисциплины
+        text: Текст с возможным указанием подгруппы
 
     Returns:
-        Кортеж (номер_подгруппы, название_без_подгруппы)
+        Кортеж (номер_подгруппы, текст_без_подгруппы)
     """
-    match = LessonPatterns.SUBGROUP.search(text)
+    # Паттерн для поиска подгруппы
+    subgroup_pattern = r'[-\s]*(\d)\s*п/г'
+    match = re.search(subgroup_pattern, text, re.IGNORECASE)
+
     if match:
-        subgroup = int(match.group(1))
-        # Удаляем подгруппу из названия, убирая также лишний дефис
-        remaining = text[:match.start()].rstrip('- ')
-        return subgroup, remaining
+        subgroup_num = int(match.group(1))
+        if subgroup_num in (1, 2):
+            # Удаляем найденный паттерн из текста
+            text_without_subgroup = text[:match.start()] + text[match.end():]
+            return subgroup_num, text_without_subgroup.strip()
+
     return None, text
 
 
-def extract_multiple_teachers_cabinets(text: str) -> tuple[list[tuple[str, str]], str]:
+def extract_comment(text: str) -> tuple[Optional[str], str]:
     """
-    Извлечь множественных преподавателей с их аудиториями.
-
-    Формат: "...   ПРЕПОДАВАТЕЛЬ2 - а.АУДИТОРИЯ2   ПРЕПОДАВАТЕЛЬ3 - а.АУДИТОРИЯ3"
+    Извлекает комментарии из текста (например, "и/д", "и/дэкол").
 
     Args:
-        text: Текст урока
+        text: Текст с возможным комментарием
 
     Returns:
-        Кортеж (список_пар_(преподаватель, аудитория), оставшийся_текст)
+        Кортеж (комментарий, текст_без_комментария)
     """
-    teachers_cabinets = []
-    remaining = text
+    # Паттерны для комментариев (должны быть в конце или рядом с аудиторией)
+    comment_patterns = [
+        r'и/д(?:экол)?',  # и/д, и/дэкол
+        r'\(.*?\)',  # Текст в скобках
+    ]
 
-    # Находим все совпадения с конца (идём справа налево)
-    matches = list(LessonPatterns.MULTIPLE_TEACHERS.finditer(text))
+    for pattern in comment_patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            comment = match.group(0)
+            text_without_comment = text[:match.start()] + text[match.end():]
+            return comment, text_without_comment.strip()
 
-    if matches:
-        # Обрабатываем совпадения
-        for match in matches:
-            teacher = match.group(1).strip()
-            cabinet = match.group(2).strip()
-            teachers_cabinets.append((teacher, cabinet))
-
-        # Удаляем все найденные совпадения из текста
-        # Берём начало до первого совпадения
-        remaining = text[:matches[0].start()].strip()
-
-    return teachers_cabinets, remaining
-
-
-def extract_cabinet(text: str) -> tuple[Optional[str], str]:
-    """
-    Извлечь основную аудиторию из текста.
-
-    Args:
-        text: Текст урока
-
-    Returns:
-        Кортеж (аудитория, оставшийся_текст)
-    """
-    match = LessonPatterns.CABINET.search(text)
-    if match:
-        cabinet = match.group(1)
-        # Удаляем аудиторию из текста
-        remaining = text[:match.start()] + text[match.end():]
-        remaining = remaining.strip()
-        return cabinet, remaining
     return None, text
 
 
-def extract_teacher(text: str) -> tuple[Optional[str], str]:
+def extract_teachers_and_cabinets(text: str) -> tuple[list[str], list[str], str]:
     """
-    Извлечь преподавателя из текста.
+    Извлекает преподавателей и аудитории из текста.
 
-    Ищем паттерн заглавных букв в конце или перед аудиторией.
+    Стратегия парсинга:
+    1. Извлекаем комментарии (и/д, и/дэкол)
+    2. Ищем все аудитории (паттерн а.XXXX)
+    3. Ищем все ФИО (ФАМИЛИЯ И.О. в КАПСЕ)
+    4. Оставшийся текст - название дисциплины
+
+    Примеры:
+    - "Математика ИВАНОВ И.И. а.101" -> name="Математика", teachers=["ИВАНОВ И.И."], cabinets=["а.101"]
+    - "История МИХЕЕВ Б.В. а.0426" -> name="История", teachers=["МИХЕЕВ Б.В."], cabinets=["а.0426"]
 
     Args:
-        text: Текст урока (после удаления аудитории)
+        text: Текст с информацией о преподавателях и аудиториях
 
     Returns:
-        Кортеж (преподаватель, название_дисциплины)
+        Кортеж (список_преподавателей, список_аудиторий, оставшийся_текст)
     """
-    # Нормализуем пробелы перед поиском
-    text = re.sub(r'\s+', ' ', text).strip()
+    teachers = []
+    cabinets = []
 
-    # Улучшенный паттерн для поиска преподавателя
-    # Преподаватель: ФАМИЛИЯ (все заглавные буквы) + опционально инициалы
-    # Формат: ФАМИЛИЯ И.О. или ФАМИЛИЯ И. или просто ФАМИЛИЯ
-    teacher_pattern = re.compile(
-        r'\s+([А-ЯЁ]+(?:-[А-ЯЁ]+)*'  # Фамилия (все заглавные, может быть с дефисом)
-        r'(?:\s+[А-ЯЁ]\.[А-ЯЁ]\.|\s+[А-ЯЁ]\.)?)$'  # Инициалы (опционально)
-    )
+    # Сначала извлекаем комментарии (и/д, и/дэкол)
+    comment, text_without_comment = extract_comment(text)
 
-    match = teacher_pattern.search(text)
-    if match:
-        teacher = match.group(1).strip()
-        # Проверяем, что это похоже на имя преподавателя (больше 2 букв или есть точка)
-        if len(teacher) > 2 or '.' in teacher:
-            remaining = text[:match.start()].strip()
-            return teacher, remaining
+    # Паттерн для аудитории: а.XXXX с возможными буквами и дефисами
+    # Примеры: а.0426, а.15-466, а.9-Спорт1, а.728-3, а.0316и
+    cabinet_pattern = r'а\.[\dа-яА-Я\-]+'
 
-    # Если не нашли паттерн с инициалами, ищем просто заглавное слово в конце
-    # Это для случаев типа "ФКС 21"
-    simple_pattern = re.compile(r'\s+([А-ЯЁ]{2,}(?:\s+\d+)?)$')
-    match = simple_pattern.search(text)
-    if match:
-        teacher = match.group(1).strip()
-        remaining = text[:match.start()].strip()
-        return teacher, remaining
+    # Паттерн для ФИО в КАПСЕ: ФАМИЛИЯ пробел И.О.
+    # ФАМИЛИЯ - заглавные буквы (может быть с дефисом)
+    # И.О. - заглавная буква + точка, еще раз заглавная + точка
+    # Примеры: МИХЕЕВ Б.В., ФЕДОРОВА И.Э., ГЕРГЕНОВА Н.Д., ШАНТАГАРОВА Н.В.
+    teacher_pattern = r'[А-ЯЁ]+(?:-[А-ЯЁ]+)?\s+[А-ЯЁ]\.[А-ЯЁ]\.'
 
-    return None, text
+    # Работаем с текстом без комментариев
+    working_text = text_without_comment
 
+    # 1. Находим и извлекаем все аудитории
+    cabinet_matches = list(re.finditer(cabinet_pattern, working_text, re.IGNORECASE))
+    for match in reversed(cabinet_matches):  # Удаляем с конца
+        cabinet = match.group(0)
+        # Очищаем от артефактов (и/д уже убрали выше)
+        cabinets.insert(0, cabinet)
+        # Удаляем из текста, заменяя пробелом
+        working_text = working_text[:match.start()] + ' ' + working_text[match.end():]
+
+    # 2. Находим и извлекаем всех преподавателей
+    teacher_matches = list(re.finditer(teacher_pattern, working_text))
+    for match in reversed(teacher_matches):  # Удаляем с конца
+        teacher = match.group(0).strip()
+        teachers.insert(0, teacher)
+        # Удаляем из текста, заменяя пробелом
+        working_text = working_text[:match.start()] + ' ' + working_text[match.end():]
+
+    # 3. Очищаем оставшийся текст
+    # Удаляем дефисы, которые использовались как разделители
+    working_text = re.sub(r'\s*-\s*', ' ', working_text)
+    # Удаляем множественные пробелы
+    working_text = re.sub(r'\s+', ' ', working_text).strip()
+
+    return teachers, cabinets, working_text
 
 def parse_lesson_info(raw_text: str) -> LessonInfo:
     """
-    Комплексное извлечение информации об уроке из сырого текста.
+    Парсит сырой текст урока в структурированный объект.
 
-    Обрабатывает все edge cases:
-    - Множественные преподаватели и аудитории
-    - Подгруппы
-    - Комментарии
-    - Разные типы занятий
-    - Отсутствующие данные
+    Последовательность парсинга:
+    1. Извлекаем тип занятия (лек., пр., лаб.)
+    2. Извлекаем подгруппу (1 п/г, 2 п/г)
+    3. Извлекаем преподавателей, аудитории и комментарии
+    4. Оставшийся текст = название дисциплины
 
     Args:
-        raw_text: Сырой текст из HTML
+        raw_text: Сырой текст из HTML ячейки
 
     Returns:
-        LessonInfo с извлечёнными данными
+        LessonInfo с распарсенными данными
     """
+    if not raw_text or raw_text.strip() in ('_', ''):
+        return LessonInfo(name="")
+
     text = normalize_text(raw_text)
 
-    # Пустой урок
-    if text == '_' or not text:
-        return LessonInfo()
-
-    result = LessonInfo()
-
     # 1. Извлекаем тип занятия
-    result.lesson_type, text = extract_lesson_type(text)
+    lesson_type, text = extract_lesson_type(text)
 
-    # 2. Извлекаем комментарий в конце
-    result.comment, text = extract_comment_suffix(text)
+    # 2. Извлекаем подгруппу
+    subgroup, text = extract_subgroup(text)
 
-    # 3. Извлекаем множественных преподавателей и их аудитории (до основной аудитории!)
-    multiple_teachers_cabinets, text = extract_multiple_teachers_cabinets(text)
+    # 3. Извлекаем преподавателей, аудитории; оставшееся - название
+    teachers, cabinets, lesson_name = extract_teachers_and_cabinets(text)
 
-    # Добавляем множественных преподавателей
-    for teacher, cabinet in multiple_teachers_cabinets:
-        result.teachers.append(teacher)
-        result.cabinets.append(cabinet)
+    # 4. Если название пустое, но есть данные, логируем предупреждение
+    if not lesson_name and (teachers or cabinets):
+        logger.warning(
+            "lesson_name_empty",
+            raw_text=raw_text,
+            teachers=teachers,
+            cabinets=cabinets
+        )
+        # В крайнем случае используем весь текст как название
+        lesson_name = text
 
-    # 4. Извлекаем основную аудиторию
-    main_cabinet, text = extract_cabinet(text)
+    return LessonInfo(
+        name=lesson_name,
+        lesson_type=lesson_type,
+        teachers=teachers,
+        cabinets=cabinets,
+        subgroup=subgroup,
+        comment=None  # Комментарии уже учтены в обработке аудиторий
+    )
 
-    # 5. Извлекаем основного преподавателя (ПОСЛЕ удаления аудитории, но ДО подгруппы!)
-    # Теперь в text остался только: "Название ПРЕПОДАВАТЕЛЬ"
-    main_teacher, text = extract_teacher(text)
 
-    # Добавляем основного преподавателя и аудиторию в начало списков
-    # (чтобы основные данные были первыми)
-    if main_teacher:
-        result.teachers.insert(0, main_teacher)
-    if main_cabinet:
-        result.cabinets.insert(0, main_cabinet)
+def get_monday_of_week(target_date: date, week_type: Optional[str] = None) -> date:
+    """
+    Получить дату понедельника для заданной даты с учетом типа недели.
 
-    # 6. Извлекаем подгруппу из оставшегося текста (название)
-    result.subgroup, text = extract_subgroup(text)
+    Args:
+        target_date: Целевая дата
+        week_type: Тип недели ("even" или "odd"). Если указан, находит ближайший
+                   понедельник с таким типом недели
 
-    # 7. Оставшийся текст - это название дисциплины
-    # Нормализуем множественные пробелы и убираем лишние пробелы
-    result.name = LessonPatterns.MULTIPLE_SPACES.sub(' ', text).strip() if text else None
+    Returns:
+        Дата понедельника
+    """
+    # Находим понедельник текущей недели
+    days_since_monday = target_date.weekday()
+    monday = target_date - timedelta(days=days_since_monday)
 
-    return result
+    # Если нужен конкретный тип недели, корректируем
+    if week_type is not None:
+        current_week_type = get_week_type_for_date(monday)
+        if current_week_type != week_type:
+            # Сдвигаем на неделю вперед
+            monday = monday + timedelta(days=7)
+
+    return monday
+
+
+def get_academic_year(target_date: date) -> tuple[int, int]:
+    """
+    Получить учебный год для заданной даты.
+
+    Args:
+        target_date: Целевая дата
+
+    Returns:
+        Кортеж (начальный_год, конечный_год), например (2024, 2025)
+    """
+    year = target_date.year
+    if target_date.month < 9:
+        return (year - 1, year)
+    return (year, year + 1)
+
+
+def get_academic_year_start(target_date: date) -> date:
+    """
+    Получить дату начала учебного года (1 сентября) для заданной даты.
+
+    Args:
+        target_date: Целевая дата
+
+    Returns:
+        Дата 1 сентября соответствующего учебного года
+    """
+    year = target_date.year
+    if target_date.month < 9:
+        year -= 1
+    return date(year, 9, 1)
 
 
 def get_week_type_for_date(target_date: date) -> str:
     """
-    Определение типа недели по учебному году.
+    Определить тип недели для конкретной даты по учебному календарю.
 
-    Считаем, что отсчет ведется от недели 1-7 сентября как нечетной,
+    Правило: неделя, которая содержит 1-7 сентября, считается нечетной (первой),
     далее недели чередуются.
 
     Args:
@@ -321,94 +355,226 @@ def get_week_type_for_date(target_date: date) -> str:
     Returns:
         "even" или "odd"
     """
-    academic_year = target_date.year
+    # Определяем начало учебного года (1 сентября)
+    year = target_date.year
+
+    # Если мы до сентября, то это предыдущий учебный год
     if target_date.month < 9:
-        academic_year -= 1
+        year -= 1
 
-    start_week = date(academic_year, 9, 1)
-    start_weekday = start_week.weekday()
-    if start_weekday != 0:
-        days_to_monday = (7 - start_weekday) % 7
-        if days_to_monday == 0:
-            days_to_monday = 7
-        start_week_monday = start_week - timedelta(days=start_weekday)
-    else:
-        start_week_monday = start_week
+    # Первое сентября текущего учебного года
+    academic_year_start = date(year, 9, 1)
 
-    days_diff = (target_date - start_week_monday).days
-    week_number = days_diff // 7
+    # Если дата раньше начала учебного года, возвращаем odd
+    if target_date < academic_year_start:
+        return "odd"
 
-    is_odd = week_number % 2 == 0
-    return "odd" if is_odd else "even"
+    # Находим понедельник недели, содержащей 1 сентября
+    # Это будет начало первой учебной недели
+    sept_1_weekday = academic_year_start.weekday()  # 0=понедельник, 6=воскресенье
+    first_week_monday = academic_year_start - timedelta(days=sept_1_weekday)
+
+    # Вычисляем количество полных недель от начала первой учебной недели
+    days_diff = (target_date - first_week_monday).days
+    week_number = (days_diff // 7) + 1
+
+    # Первая неделя (содержащая 1-7 сентября) - нечетная
+    week_type = "even" if week_number % 2 == 0 else "odd"
+
+    logger.debug(
+        "week_type_calculated",
+        target_date=target_date.isoformat(),
+        academic_year_start=academic_year_start.isoformat(),
+        first_week_monday=first_week_monday.isoformat(),
+        days_diff=days_diff,
+        week_number=week_number,
+        week_type=week_type
+    )
+
+    return week_type
 
 
-def get_monday_of_week(target_date: date) -> date:
+def get_current_week_type() -> str:
     """
-    Получить понедельник недели для заданной даты.
-
-    Args:
-        target_date: Дата
+    Определить тип текущей недели (четная/нечетная) по учебному календарю.
 
     Returns:
-        Дата понедельника той же недели
+        "even" или "odd"
     """
-    days_to_monday = target_date.weekday()
-    return target_date - timedelta(days=days_to_monday)
+    today = date.today()
+    return get_week_type_for_date(today)
+
+
+def get_week_number_in_academic_year(target_date: date) -> int:
+    """
+    Получить номер учебной недели в учебном году.
+
+    Args:
+        target_date: Целевая дата
+
+    Returns:
+        Номер недели (начиная с 1 для первой недели)
+    """
+    academic_year_start = get_academic_year_start(target_date)
+    sept_1_weekday = academic_year_start.weekday()
+    first_week_monday = academic_year_start - timedelta(days=sept_1_weekday)
+
+    days_diff = (target_date - first_week_monday).days
+    week_number = (days_diff // 7) + 1
+
+    return max(1, week_number)
+
+
+def is_academic_year_active(target_date: date) -> bool:
+    """
+    Проверить, является ли дата частью активного учебного года.
+
+    Учебный год обычно длится с сентября по июнь.
+
+    Args:
+        target_date: Целевая дата
+
+    Returns:
+        True если дата в пределах учебного года
+    """
+    month = target_date.month
+    # Учебный год: сентябрь-июнь (месяцы 9-12 и 1-6)
+    return month >= 9 or month <= 6
+
+
+def format_academic_year(target_date: date) -> str:
+    """
+    Форматировать учебный год в читаемый вид.
+
+    Args:
+        target_date: Целевая дата
+
+    Returns:
+        Строка вида "2024/2025"
+    """
+    start_year, end_year = get_academic_year(target_date)
+    return f"{start_year}/{end_year}"
+
+
+# Типы для generic retry функции
+P = ParamSpec('P')
+T = TypeVar('T')
 
 
 async def retry_async(
-    func: Callable[..., T],
-    *args: Any,
-    max_retries: Optional[int] = None,
-    **kwargs: Any
+        func: Callable[P, T],
+        *args: P.args,
+        **kwargs: P.kwargs
 ) -> T:
     """
-    Декоратор для повтора асинхронной функции с экспоненциальной задержкой.
+    Повторяет асинхронную функцию при ошибках с экспоненциальной задержкой.
 
     Args:
         func: Асинхронная функция для выполнения
-        *args: Позиционные аргументы функции
-        max_retries: Максимальное количество попыток
-        **kwargs: Именованные аргументы функции
+        *args: Позиционные аргументы для функции
+        **kwargs: Именованные аргументы для функции
 
     Returns:
         Результат выполнения функции
 
     Raises:
-        Exception: Последняя ошибка после всех попыток
+        Exception: Последнее исключение после всех попыток
     """
-    from .config import get_config
     config = get_config()
-    retries = max_retries if max_retries is not None else config.max_retries
-    delay = config.retry_delay
-
     last_exception = None
 
-    for attempt in range(retries):
+    for attempt in range(1, config.max_retries + 1):
         try:
             return await func(*args, **kwargs)
         except Exception as e:
             last_exception = e
-            if attempt < retries - 1:
-                wait_time = delay * (config.retry_exponential_base ** attempt)
+
+            if attempt < config.max_retries:
+                delay = config.retry_delay * (config.retry_exponential_base ** (attempt - 1))
                 logger.warning(
-                    "retry_attempt_failed",
-                    function=func.__name__,
-                    attempt=attempt + 1,
-                    max_retries=retries,
-                    wait_time=wait_time,
+                    "retry_attempt",
+                    attempt=attempt,
+                    max_retries=config.max_retries,
+                    delay=delay,
                     error=str(e)
                 )
-                await asyncio.sleep(wait_time)
+                await asyncio.sleep(delay)
             else:
                 logger.error(
                     "retry_exhausted",
-                    function=func.__name__,
-                    max_retries=retries,
+                    attempts=config.max_retries,
                     error=str(e)
                 )
 
     raise last_exception
+
+
+def format_lesson_time(start: time, end: time) -> str:
+    """
+    Форматирует время урока в читаемый вид.
+
+    Args:
+        start: Время начала
+        end: Время окончания
+
+    Returns:
+        Строка вида "09:00-10:35"
+    """
+    return f"{start.strftime('%H:%M')}-{end.strftime('%H:%M')}"
+
+
+def format_day_name(day_of_week: int, full: bool = False) -> str:
+    """
+    Форматирует номер дня недели в название.
+
+    Args:
+        day_of_week: Номер дня недели (1-7)
+        full: Если True, возвращает полное название, иначе сокращенное
+
+    Returns:
+        Название дня недели
+    """
+    day_names_full = {
+        1: "Понедельник",
+        2: "Вторник",
+        3: "Среда",
+        4: "Четверг",
+        5: "Пятница",
+        6: "Суббота",
+        7: "Воскресенье",
+    }
+
+    day_names_short = {
+        1: "Пнд",
+        2: "Втр",
+        3: "Срд",
+        4: "Чтв",
+        5: "Птн",
+        6: "Сбт",
+        7: "Вск",
+    }
+
+    names = day_names_full if full else day_names_short
+    return names.get(day_of_week, "Неизвестно")
+
+
+def validate_lesson_data(lesson_info: LessonInfo) -> tuple[bool, Optional[str]]:
+    """
+    Валидирует данные урока.
+
+    Args:
+        lesson_info: Информация об уроке
+
+    Returns:
+        Кортеж (валидность, сообщение_об_ошибке)
+    """
+    if not lesson_info.name:
+        return False, "Отсутствует название дисциплины"
+
+    if lesson_info.subgroup and lesson_info.subgroup not in (1, 2):
+        return False, f"Некорректный номер подгруппы: {lesson_info.subgroup}"
+
+    return True, None
 
 
 def configure_logging(log_level: str = "INFO") -> None:

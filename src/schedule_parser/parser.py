@@ -145,18 +145,7 @@ def parse_schedule_html(html: str, group_id: int) -> tuple[list[Lesson], list[Le
     """
     Парсинг HTML расписания в структурированные данные.
 
-    Улучшенная версия с поддержкой:
-    - Подгрупп
-    - Множественных преподавателей
-    - Комментариев
-    - Всех edge cases
-
-    Args:
-        html: HTML содержимое
-        group_id: ID группы
-
-    Returns:
-        Кортеж (уроки_четной_недели, уроки_нечетной_недели)
+    Поддерживает множественные подгруппы в одной записи.
     """
     parser = ScheduleHTMLParser()
     parser.feed(html)
@@ -168,7 +157,10 @@ def parse_schedule_html(html: str, group_id: int) -> tuple[list[Lesson], list[Le
 
     # Текущая дата для расчета
     today = date.today()
-    monday = get_monday_of_week(today)
+
+    # Получаем понедельники для каждого типа недели
+    monday_even = get_monday_of_week(today, week_type="even")
+    monday_odd = get_monday_of_week(today, week_type="odd")
 
     # Счётчики для логирования
     total_processed = 0
@@ -180,14 +172,11 @@ def parse_schedule_html(html: str, group_id: int) -> tuple[list[Lesson], list[Le
     # Обрабатываем строки расписания
     for row_idx, (row, metadata) in enumerate(schedule_data):
         if not row or len(row) < 2:
-            logger.debug("skipped_row_too_short", row_idx=row_idx, row_len=len(row) if row else 0)
             continue
 
         # Первая ячейка - день недели
         day_str = normalize_text(row[0]).lower()
-
         if not day_str:
-            logger.debug("skipped_row_no_day", row_idx=row_idx)
             continue
 
         is_odd_week = metadata.get("has_blue", False)
@@ -200,11 +189,14 @@ def parse_schedule_html(html: str, group_id: int) -> tuple[list[Lesson], list[Le
             logger.warning("unknown_day_of_week", day_str=day_str, row_idx=row_idx)
             continue
 
+        # ВАЖНО: Выбираем правильный понедельник в зависимости от типа недели
+        base_monday = monday_odd if is_odd_week else monday_even
+
         # Рассчитываем дату урока
         days_offset = day_of_week - 1
-        lesson_date = monday + timedelta(days=days_offset)
+        lesson_date = base_monday + timedelta(days=days_offset)
 
-        # Обрабатываем каждую пару (со 2-й ячейки)
+        # Обрабатываем каждую пару
         for lesson_number, cell_text in enumerate(row_cells, start=1):
             total_processed += 1
 
@@ -213,7 +205,7 @@ def parse_schedule_html(html: str, group_id: int) -> tuple[list[Lesson], list[Le
                 skipped_empty += 1
                 continue
 
-            # Парсим информацию об уроке с помощью улучшенной функции
+            # Парсим информацию об уроке
             lesson_info = parse_lesson_info(cell_text)
 
             if not lesson_info.name:
@@ -238,30 +230,24 @@ def parse_schedule_html(html: str, group_id: int) -> tuple[list[Lesson], list[Le
                 continue
 
             # Собираем данные о преподавателях и аудиториях
-            # Объединяем множественных преподавателей через точку с запятой
             teacher_name = '; '.join(lesson_info.teachers) if lesson_info.teachers else None
-
-            # Объединяем множественные аудитории через точку с запятой (аналогично преподавателям)
             cabinet_number = '; '.join(lesson_info.cabinets) if lesson_info.cabinets else None
+
+            # Формируем название с учетом подгруппы
+            lesson_name = lesson_info.name
+            if lesson_info.subgroup:
+                lesson_name = f"{lesson_info.name} (подгруппа {lesson_info.subgroup})"
 
             # Логируем интересные случаи
             if lesson_info.subgroup:
                 with_subgroups += 1
             if len(lesson_info.teachers) > 1:
                 with_multiple_teachers += 1
-                logger.debug(
-                    "multiple_teachers_found",
-                    name=lesson_info.name,
-                    teachers=lesson_info.teachers,
-                    cabinets=lesson_info.cabinets,
-                    day=day_of_week,
-                    lesson_number=lesson_number
-                )
 
             # Создаем объект урока
             lesson = Lesson(
                 group_id=group_id,
-                name=lesson_info.name,
+                name=lesson_name,  # Теперь с подгруппой
                 lesson_date=lesson_date,
                 day_of_week=day_of_week,
                 lesson_number=lesson_number,
@@ -271,7 +257,7 @@ def parse_schedule_html(html: str, group_id: int) -> tuple[list[Lesson], list[Le
                 cabinet_number=cabinet_number,
                 week_type=week_type,
                 raw_text=cell_text,
-                subgroup=lesson_info.subgroup  # Теперь поддерживаем подгруппы!
+                subgroup=lesson_info.subgroup
             )
 
             # Добавляем в соответствующий список
@@ -294,7 +280,6 @@ def parse_schedule_html(html: str, group_id: int) -> tuple[list[Lesson], list[Le
     )
 
     return even_lessons, odd_lessons
-
 
 async def compare_and_update_lessons(
         db: Database,
