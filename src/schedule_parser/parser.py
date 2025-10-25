@@ -18,7 +18,6 @@ from .utils import (
     DAY_MAPPING,
     LESSON_TIMES,
     parse_lesson_info,
-    get_week_type_for_date,
     get_monday_of_week,
     retry_async,
     normalize_text
@@ -458,34 +457,37 @@ async def compare_and_update_lessons(
                     "subgroup": new_lesson.subgroup
                 })
 
-            # Удаление отсутствующих уроков
-            if to_delete:
-                logger.info(
-                    "lessons_delete_batch_start",
-                    group_id=group_id,
-                    week_type=week_type.value,
-                    count=len(to_delete)
-                )
-            for existing_lesson in to_delete:
-                await db.delete_lesson(existing_lesson.lesson_id, conn=connection)
-                await db.log_schedule_change(
-                    existing_lesson.lesson_id,
-                    ChangeType.DELETE,
-                    old_data={
+                # Удаление отсутствующих уроков
+                if to_delete:
+                    logger.info(
+                        "lessons_delete_batch_start",
+                        group_id=group_id,
+                        week_type=week_type.value,
+                        count=len(to_delete)
+                    )
+                for existing_lesson in to_delete:
+                    # ВАЖНО: Сначала логируем изменение, потом удаляем!
+                    await db.log_schedule_change(
+                        existing_lesson.lesson_id,
+                        ChangeType.DELETE,
+                        old_data={
+                            "name": existing_lesson.name,
+                            "teacher": existing_lesson.teacher_name,
+                            "subgroup": existing_lesson.subgroup
+                        },
+                        conn=connection
+                    )
+                    # Теперь можно безопасно удалить урок
+                    await db.delete_lesson(existing_lesson.lesson_id, conn=connection)
+
+                    deleted += 1
+                    deleted_details.append({
+                        "lesson_id": existing_lesson.lesson_id,
                         "name": existing_lesson.name,
-                        "teacher": existing_lesson.teacher_name,
+                        "day": existing_lesson.day_of_week,
+                        "number": existing_lesson.lesson_number,
                         "subgroup": existing_lesson.subgroup
-                    },
-                    conn=connection
-                )
-                deleted += 1
-                deleted_details.append({
-                    "lesson_id": existing_lesson.lesson_id,
-                    "name": existing_lesson.name,
-                    "day": existing_lesson.day_of_week,
-                    "number": existing_lesson.lesson_number,
-                    "subgroup": existing_lesson.subgroup
-                })
+                    })
 
         logger.info(
             "lessons_transaction_completed",

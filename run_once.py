@@ -21,10 +21,10 @@ if __package__ is None or __package__ == "":
     configure_logging = utils_module.configure_logging
     get_database = db_module.get_database
 else:
-    from .config import get_config
-    from .parser import parse_group
-    from .utils import configure_logging
-    from .db import get_database
+    from config import get_config
+    from parser import parse_group
+    from src.schedule_parser.utils import configure_logging
+    from db import get_database
 
 async def main(group_id: int) -> None:
     config = get_config()

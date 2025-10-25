@@ -4,7 +4,6 @@
 
 import json
 from contextlib import asynccontextmanager
-from datetime import datetime, date
 from typing import Optional
 
 import asyncpg
@@ -288,6 +287,26 @@ class Database:
         """Гарантирует наличие пула подключений."""
         if self.pool is None:
             await self.connect()
+
+    async def fetch(self, query: str, *args) -> list[dict]:
+        """Выполнить запрос и получить все строки."""
+        await self.ensure_connected()
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(query, *args)
+            return rows
+
+    async def fetchrow(self, query: str, *args) -> Optional[dict]:
+        """Выполнить запрос и получить одну строку."""
+        await self.ensure_connected()
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(query, *args)
+            return row
+
+    async def execute(self, query: str, *args) -> str:
+        """Выполнить SQL команду."""
+        await self.ensure_connected()
+        async with self.pool.acquire() as conn:
+            return await conn.execute(query, *args)
 
     @asynccontextmanager
     async def acquire_connection(self) -> asyncpg.Connection:

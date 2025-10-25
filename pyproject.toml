@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "schedule-parser"
+version = "1.0.0"
+description = "Асинхронный парсер расписания учебных групп"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "aiohttp>=3.8.0",
+    "asyncpg>=0.29.0",
+    "beautifulsoup4>=4.11.0",
+    "pydantic>=2.0.0",
+    "structlog>=24.1.0",
+]
+
+[tool.setuptools]
+packages = ["schedule_parser"]
+
+[tool.setuptools.package-dir]
+"" = "src"
