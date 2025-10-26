@@ -94,7 +94,7 @@ class Database:
                 """
             )
             return [row['groupid'] for row in rows]
-    
+
     async def get_existing_lessons(
         self,
         group_id: int,
@@ -103,11 +103,12 @@ class Database:
     ) -> list[Lesson]:
         """
         Получить существующие уроки для группы и типа недели.
-        
+
         Args:
             group_id: ID группы
             week_type: Тип недели
-            
+            conn: Опциональное подключение для переиспользования
+
         Returns:
             Список существующих уроков
         """
@@ -117,7 +118,8 @@ class Database:
                 SELECT 
                     LessonId, GroupId, Name, LessonDate, DayOfWeek,
                     LessonNumber, StartTime, EndTime, TeacherName,
-                    CabinetNumber, WeekType, RawText, DateAdded, LastUpdated
+                    CabinetNumber, WeekType, lesson_type, Subgroup,
+                    RawText, DateAdded, LastUpdated
                 FROM Lesson
                 WHERE GroupId = $1 AND WeekType = $2
                 ORDER BY DayOfWeek, LessonNumber
@@ -138,6 +140,8 @@ class Database:
                     teacher_name=row['teachername'],
                     cabinet_number=row['cabinetnumber'],
                     week_type=WeekType(row['weektype']),
+                    subgroup=row['subgroup'],
+                    lesson_type=row['lesson_type'],
                     raw_text=row['rawtext'],
                     date_added=row['dateadded'],
                     last_updated=row['lastupdated']
@@ -150,14 +154,15 @@ class Database:
 
         async with self.pool.acquire() as connection:
             return await _fetch(connection)
-    
+
     async def insert_lesson(self, lesson: Lesson, conn: Optional[asyncpg.Connection] = None) -> int:
         """
         Вставить новый урок в БД.
-        
+
         Args:
             lesson: Объект урока
-            
+            conn: Опциональное подключение для переиспользования
+
         Returns:
             ID созданного урока
         """
@@ -167,9 +172,9 @@ class Database:
                 INSERT INTO Lesson (
                     GroupId, Name, LessonDate, DayOfWeek, LessonNumber,
                     StartTime, EndTime, TeacherName, CabinetNumber,
-                    WeekType, RawText
+                    WeekType, lesson_type, Subgroup, RawText
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
                 RETURNING LessonId
                 """,
                 lesson.group_id,
@@ -182,6 +187,8 @@ class Database:
                 lesson.teacher_name,
                 lesson.cabinet_number,
                 lesson.week_type.value,
+                lesson.lesson_type,
+                lesson.subgroup,
                 lesson.raw_text
             )
             return row['lessonid']
@@ -191,13 +198,14 @@ class Database:
 
         async with self.pool.acquire() as connection:
             return await _execute(connection)
-    
+
     async def update_lesson(self, lesson: Lesson, conn: Optional[asyncpg.Connection] = None) -> None:
         """
         Обновить существующий урок.
-        
+
         Args:
             lesson: Объект урока с заполненным lesson_id
+            conn: Опциональное подключение для переиспользования
         """
         async def _execute(connection: asyncpg.Connection) -> None:
             await connection.execute(
@@ -205,7 +213,8 @@ class Database:
                 UPDATE Lesson
                 SET Name = $2, LessonDate = $3, DayOfWeek = $4,
                     LessonNumber = $5, StartTime = $6, EndTime = $7,
-                    TeacherName = $8, CabinetNumber = $9, RawText = $10
+                    TeacherName = $8, CabinetNumber = $9, lesson_type = $10,
+                    Subgroup = $11, RawText = $12
                 WHERE LessonId = $1
                 """,
                 lesson.lesson_id,
@@ -217,6 +226,8 @@ class Database:
                 lesson.end_time,
                 lesson.teacher_name,
                 lesson.cabinet_number,
+                lesson.lesson_type,
+                lesson.subgroup,
                 lesson.raw_text
             )
 
@@ -226,13 +237,14 @@ class Database:
 
         async with self.pool.acquire() as connection:
             await _execute(connection)
-    
+
     async def delete_lesson(self, lesson_id: int, conn: Optional[asyncpg.Connection] = None) -> None:
         """
         Удалить урок из БД.
-        
+
         Args:
             lesson_id: ID урока
+            conn: Опциональное подключение для переиспользования
         """
         async def _execute(connection: asyncpg.Connection) -> None:
             await connection.execute(
@@ -246,7 +258,7 @@ class Database:
 
         async with self.pool.acquire() as connection:
             await _execute(connection)
-    
+
     async def log_schedule_change(
         self,
         lesson_id: int,
@@ -257,12 +269,13 @@ class Database:
     ) -> None:
         """
         Записать изменение в журнал.
-        
+
         Args:
             lesson_id: ID урока
             change_type: Тип изменения
             old_data: Старые данные (для update/delete)
             new_data: Новые данные (для new/update)
+            conn: Опциональное подключение для переиспользования
         """
         async def _execute(connection: asyncpg.Connection) -> None:
             await connection.execute(

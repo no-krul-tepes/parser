@@ -247,7 +247,7 @@ def parse_schedule_html(html: str, group_id: int) -> tuple[list[Lesson], list[Le
             # Создаем объект урока
             lesson = Lesson(
                 group_id=group_id,
-                name=lesson_name,  # Теперь с подгруппой
+                name=lesson_info.name,
                 lesson_date=lesson_date,
                 day_of_week=day_of_week,
                 lesson_number=lesson_number,
@@ -256,6 +256,7 @@ def parse_schedule_html(html: str, group_id: int) -> tuple[list[Lesson], list[Le
                 teacher_name=teacher_name,
                 cabinet_number=cabinet_number,
                 week_type=week_type,
+                lesson_type=lesson_info.lesson_type,  # Добавлено
                 raw_text=cell_text,
                 subgroup=lesson_info.subgroup
             )
@@ -325,7 +326,6 @@ async def compare_and_update_lessons(
         existing_lessons = await db.get_existing_lessons(group_id, week_type, conn=connection)
 
         # Создаём маппинг с учётом подгруппы
-        # Ключ: (day_of_week, lesson_number, subgroup)
         existing_map = {
             (l.day_of_week, l.lesson_number, l.subgroup): l
             for l in existing_lessons
@@ -382,28 +382,29 @@ async def compare_and_update_lessons(
                     week_type=week_type.value,
                     count=len(to_insert)
                 )
-            for new_lesson in to_insert:
-                lesson_id = await db.insert_lesson(new_lesson, conn=connection)
-                await db.log_schedule_change(
-                    lesson_id,
-                    ChangeType.NEW,
-                    new_data={
+                for new_lesson in to_insert:
+                    lesson_id = await db.insert_lesson(new_lesson, conn=connection)
+                    await db.log_schedule_change(
+                        lesson_id,
+                        ChangeType.NEW,
+                        new_data={
+                            "name": new_lesson.name,
+                            "teacher": new_lesson.teacher_name,
+                            "subgroup": new_lesson.subgroup,
+                            "cabinet": new_lesson.cabinet_number
+                        },
+                        conn=connection
+                    )
+                    added += 1
+                    added_details.append({
+                        "lesson_id": lesson_id,
                         "name": new_lesson.name,
+                        "type": new_lesson.lesson_type,
+                        "day": new_lesson.day_of_week,
+                        "number": new_lesson.lesson_number,
                         "teacher": new_lesson.teacher_name,
-                        "subgroup": new_lesson.subgroup,
-                        "cabinet": new_lesson.cabinet_number
-                    },
-                    conn=connection
-                )
-                added += 1
-                added_details.append({
-                    "lesson_id": lesson_id,
-                    "name": new_lesson.name,
-                    "day": new_lesson.day_of_week,
-                    "number": new_lesson.lesson_number,
-                    "teacher": new_lesson.teacher_name,
-                    "subgroup": new_lesson.subgroup
-                })
+                        "subgroup": new_lesson.subgroup
+                    })
 
             # Обновление существующих уроков
             if to_update:
@@ -413,43 +414,44 @@ async def compare_and_update_lessons(
                     week_type=week_type.value,
                     count=len(to_update)
                 )
-            for existing_lesson, new_lesson in to_update:
-                await db.update_lesson(new_lesson, conn=connection)
-                await db.log_schedule_change(
-                    existing_lesson.lesson_id,
-                    ChangeType.UPDATE,
-                    old_data={
-                        "name": existing_lesson.name,
-                        "teacher": existing_lesson.teacher_name,
-                        "subgroup": existing_lesson.subgroup,
-                        "cabinet": existing_lesson.cabinet_number
-                    },
-                    new_data={
-                        "name": new_lesson.name,
-                        "teacher": new_lesson.teacher_name,
-                        "subgroup": new_lesson.subgroup,
-                        "cabinet": new_lesson.cabinet_number
-                    },
-                    conn=connection
-                )
-                updated += 1
-                updated_details.append({
-                    "lesson_id": existing_lesson.lesson_id,
-                    "old_name": existing_lesson.name,
-                    "new_name": new_lesson.name,
-                    "day": new_lesson.day_of_week,
-                    "number": new_lesson.lesson_number,
-                    "subgroup": new_lesson.subgroup
-                })
-
-                # Удаление отсутствующих уроков
-                if to_delete:
-                    logger.info(
-                        "lessons_delete_batch_start",
-                        group_id=group_id,
-                        week_type=week_type.value,
-                        count=len(to_delete)
+                for existing_lesson, new_lesson in to_update:
+                    await db.update_lesson(new_lesson, conn=connection)
+                    await db.log_schedule_change(
+                        existing_lesson.lesson_id,
+                        ChangeType.UPDATE,
+                        old_data={
+                            "name": existing_lesson.name,
+                            "teacher": existing_lesson.teacher_name,
+                            "subgroup": existing_lesson.subgroup,
+                            "cabinet": existing_lesson.cabinet_number
+                        },
+                        new_data={
+                            "name": new_lesson.name,
+                            "teacher": new_lesson.teacher_name,
+                            "subgroup": new_lesson.subgroup,
+                            "cabinet": new_lesson.cabinet_number
+                        },
+                        conn=connection
                     )
+                    updated += 1
+                    updated_details.append({
+                        "lesson_id": existing_lesson.lesson_id,
+                        "old_name": existing_lesson.name,
+                        "new_name": new_lesson.name,
+                        "type": new_lesson.lesson_type,
+                        "day": new_lesson.day_of_week,
+                        "number": new_lesson.lesson_number,
+                        "subgroup": new_lesson.subgroup
+                    })
+
+            # Удаление отсутствующих уроков
+            if to_delete:
+                logger.info(
+                    "lessons_delete_batch_start",
+                    group_id=group_id,
+                    week_type=week_type.value,
+                    count=len(to_delete)
+                )
                 for existing_lesson in to_delete:
                     # ВАЖНО: Сначала логируем изменение, потом удаляем!
                     await db.log_schedule_change(
@@ -469,6 +471,7 @@ async def compare_and_update_lessons(
                     deleted_details.append({
                         "lesson_id": existing_lesson.lesson_id,
                         "name": existing_lesson.name,
+                        "type": existing_lesson.lesson_type,
                         "day": existing_lesson.day_of_week,
                         "number": existing_lesson.lesson_number,
                         "subgroup": existing_lesson.subgroup

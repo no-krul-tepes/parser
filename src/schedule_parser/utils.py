@@ -72,6 +72,15 @@ class LessonInfo:
         if self.cabinets is None:
             self.cabinets = []
 
+    def __repr__(self) -> str:
+        """Строковое представление для отладки."""
+        type_str = f", type={self.lesson_type}" if self.lesson_type else ""
+        subgroup_str = f", subgroup={self.subgroup}" if self.subgroup else ""
+        return (
+            f"LessonInfo(name='{self.name}'{type_str}, "
+            f"teachers={self.teachers}, cabinets={self.cabinets}{subgroup_str})"
+        )
+
 
 def normalize_text(text: str) -> str:
     """

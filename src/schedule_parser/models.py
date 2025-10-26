@@ -1,6 +1,5 @@
 """
 Модели данных для парсера расписания.
-Обновлённая версия с поддержкой подгрупп.
 """
 
 from dataclasses import dataclass, field
@@ -40,6 +39,7 @@ class Lesson:
         cabinet_number: Номер аудитории
         week_type: Тип недели (четная/нечетная)
         subgroup: Номер подгруппы (1, 2 или None для всей группы)
+        lesson_type: Тип занятия (лекция, практика и т.п.)
         raw_text: Исходный текст из HTML
         date_added: Дата добавления записи
         last_updated: Дата последнего обновления
@@ -54,7 +54,8 @@ class Lesson:
     week_type: WeekType
     teacher_name: Optional[str] = None
     cabinet_number: Optional[str] = None
-    subgroup: Optional[int] = None  # Новое поле для подгрупп
+    subgroup: Optional[int] = None
+    lesson_type: Optional[str] = None
     raw_text: Optional[str] = None
     lesson_id: Optional[int] = None
     date_added: Optional[datetime] = None
@@ -73,16 +74,18 @@ class Lesson:
             self.name == other.name
             and self.teacher_name == other.teacher_name
             and self.cabinet_number == other.cabinet_number
+            and self.lesson_type == other.lesson_type
             and self.start_time == other.start_time
             and self.end_time == other.end_time
-            and self.subgroup == other.subgroup  # Учитываем подгруппу
+            and self.subgroup == other.subgroup
         )
 
     def __repr__(self) -> str:
         """Строковое представление урока для отладки."""
         subgroup_str = f" (п/г {self.subgroup})" if self.subgroup else ""
+        type_str = f", type={self.lesson_type}" if self.lesson_type else ""
         return (
-            f"Lesson({self.name}{subgroup_str}, "
+            f"Lesson({type_str}{self.name}{subgroup_str}, "
             f"day={self.day_of_week}, "
             f"number={self.lesson_number}, "
             f"teacher={self.teacher_name}, "

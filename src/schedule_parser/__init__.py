@@ -24,7 +24,7 @@ from .db import get_database, Database
 from .config import Config, get_config
 from .utils import configure_logging
 
-__version__ = "1.0.2"
+__version__ = "1.0.1"
 
 __all__ = [
     # Основные функции парсинга

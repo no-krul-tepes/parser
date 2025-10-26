@@ -290,9 +290,13 @@ even, odd = parse_schedule_html(HTML, group_id=1)
 
 
 def lesson_to_record(lesson):
+    name = lesson.name
+    if lesson.lesson_type:
+        name = f"{lesson.lesson_type}. {lesson.name}"
+
     return {
         "group_id": lesson.group_id,
-        "name": lesson.name,
+        "name": name,
         "lesson_date": lesson.lesson_date.isoformat(),
         "day_of_week": lesson.day_of_week,
         "lesson_number": lesson.lesson_number,
@@ -301,6 +305,8 @@ def lesson_to_record(lesson):
         "teacher_name": lesson.teacher_name,
         "cabinet_number": lesson.cabinet_number,
         "week_type": lesson.week_type.value,
+        "lesson_type": lesson.lesson_type,  # Добавлено поле
+        "subgroup": lesson.subgroup,  # Добавлено поле
         "raw_text": lesson.raw_text,
     }
 
