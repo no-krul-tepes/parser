@@ -19,6 +19,7 @@ from .utils import (
     LESSON_TIMES,
     parse_lesson_info,
     get_monday_of_week,
+    get_week_type_for_date,
     retry_async,
     normalize_text
 )
@@ -158,7 +159,16 @@ def parse_schedule_html(html: str, group_id: int) -> tuple[list[Lesson], list[Le
     # Текущая дата для расчета
     today = date.today()
 
-    # Получаем понедельники для каждого типа недели
+    # Определяем текущий и следующий тип недели с учетом выделения на сайте
+    current_week_type = WeekType(get_week_type_for_date(today))
+    next_week_type = WeekType.ODD if current_week_type == WeekType.EVEN else WeekType.EVEN
+
+    current_week_monday = get_monday_of_week(today)
+    next_week_monday = current_week_monday + timedelta(days=7)
+
+    highlight_present = any(metadata.get("has_blue", False) for _, metadata in schedule_data)
+
+    # Fallback на старую логику, если подсветки нет вообще
     monday_even = get_monday_of_week(today, week_type="even")
     monday_odd = get_monday_of_week(today, week_type="odd")
 
@@ -179,18 +189,25 @@ def parse_schedule_html(html: str, group_id: int) -> tuple[list[Lesson], list[Le
         if not day_str:
             continue
 
-        is_odd_week = metadata.get("has_blue", False)
+        has_highlight = metadata.get("has_blue", False)
         row_cells = row[1:]
-        week_type = WeekType.ODD if is_odd_week else WeekType.EVEN
+
+        if highlight_present:
+            if has_highlight:
+                week_type = current_week_type
+                base_monday = current_week_monday
+            else:
+                week_type = next_week_type
+                base_monday = next_week_monday
+        else:
+            week_type = WeekType.ODD if has_highlight else WeekType.EVEN
+            base_monday = monday_odd if week_type == WeekType.ODD else monday_even
 
         # Получаем номер дня недели
         day_of_week = DAY_MAPPING.get(day_str[:3])
         if not day_of_week:
             logger.warning("unknown_day_of_week", day_str=day_str, row_idx=row_idx)
             continue
-
-        # ВАЖНО: Выбираем правильный понедельник в зависимости от типа недели
-        base_monday = monday_odd if is_odd_week else monday_even
 
         # Рассчитываем дату урока
         days_offset = day_of_week - 1
