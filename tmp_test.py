@@ -6,12 +6,12 @@ HTML = """
 <HEAD>
 <META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=windows-1251">
 <META NAME="Generator" CONTENT="Microsoft Word 97">
-<TITLE>106</TITLE>
+<TITLE>2</TITLE>
 <META NAME="Template" CONTENT="C:\PROGRAM FILES\MICROSOFT OFFICE\OFFICE\html.dot">
 </HEAD>
 <BODY>
 <SCRIPT>var d=new Date(Date.parse(document.lastModified)); var m=''+(d.getMonth() + 1); if(m<10){m='0'+m;} var day=''+d.getDate(); if(day<10){day='0'+day;} var y=d.getFullYear(); var x=day+'.'+m+'.'+y; document.writeln("<P>Расписание обновлено "+x+"</P>");</SCRIPT>
-<FONT FACE="Times New Roman" SIZE=5 COLOR="#0000ff"><P>Расписание занятий учебной группы:</FONT><FONT FACE="Times New Roman" SIZE=6 COLOR="#ff00ff"> 1123</P></FONT>
+<FONT FACE="Times New Roman" SIZE=5 COLOR="#0000ff"><P>Расписание занятий учебной группы:</FONT><FONT FACE="Times New Roman" SIZE=6 COLOR="#ff00ff"> К25</P></FONT>
 <TABLE BORDER CELLSPACING=3 BORDERCOLOR="#000000" CELLPADDING=2 WIDTH=801>
 <TR><TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <P ALIGN="CENTER"><FONT FACE="Arial">Пары</FONT></TD>
@@ -54,15 +54,15 @@ HTML = """
 <TR><TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <B><I><FONT FACE="Arial" SIZE=2><P ALIGN="CENTER">Пнд</B></I></FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">лек.ЭД 3 Оценка профессиональных рисков  ПЛИШКИНА О.В.  а.8240 эбж   </FONT></TD>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">Физическая культура и спорт ФКС 12  а.9-Спорт2   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">пр.Гидромеханика КОТОВА Т.И.  а.8111а   </FONT></TD>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">лек.История МИХЕЕВ Б.В.  а.15-466   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">ЭК по ФКС 4 ФКС 8  а.9-Спорт4   </FONT></TD>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">лек.Химия СЯЧИНОВА Н.В.  а.8433   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">лек.Экология ЖАРНИКОВА Е.В.  а.8241 экол   </FONT></TD>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">пр.Иностранный язык- 1 п/г ЦЫБИКОВА Л.Б.  а.0331   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">лаб.Гидромеханика БАДМАЕВА Т.Ц.  а.8111а   </FONT></TD>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">_     </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">_     </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
@@ -73,13 +73,13 @@ HTML = """
 <TR><TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <B><I><FONT FACE="Arial" SIZE=2><P ALIGN="CENTER">Втр</B></I></FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">_     </FONT></TD>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">пр.География ФЕДОРОВА И.Э.  а.0330   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">_     </FONT></TD>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">лек.Физика ШАГДУРОВА А.И.  а.0310   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">_     </FONT></TD>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">пр.Литература МОЛОНОВА Л.Б.  а.15-343   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">_     </FONT></TD>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">пр.Физика ШАГДУРОВА А.И.  а.0410   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">_     </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
@@ -92,13 +92,13 @@ HTML = """
 <TR><TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <B><I><FONT FACE="Arial" SIZE=2><P ALIGN="CENTER">Срд</B></I></FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">лек.Экология ЖАРНИКОВА Е.В.  а.8241 экол   </FONT></TD>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">_     </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">лек.Гидрогеология ПЛЮСНИН А.М.  а.8228 и/д   </FONT></TD>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">лек.Математика БУДАЕВА Л.Ж.  а.0410   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">пр.Гидрогеология ПЛЮСНИН А.М.  а.8127   </FONT></TD>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">лек.Родная литература АНГАРХАЕВА Ю.П.  а.8225   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">пр.Гидрогеология ПЛЮСНИН А.М.  а.8127   </FONT></TD>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">_     </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">_     </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
@@ -111,15 +111,15 @@ HTML = """
 <TR><TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <B><I><FONT FACE="Arial" SIZE=2><P ALIGN="CENTER">Чтв</B></I></FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">пр.Обществознание ЖИМБУЕВА Д.А.  а.721   </FONT></TD>
+<TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">лек.Основы безопасности и защиты Родины РИНЧИНОВА С.Б.  а.8236 и/дэкол   </FONT></TD>
+<TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">пр.Математика БУДАЕВА Л.Ж.  а.0327   </FONT></TD>
+<TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">пр.Иностранный язык- 2 п/г ЦЫБИКОВА Л.Б.  а.0328   </FONT></TD>
+<TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">_     </FONT></TD>
-<TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">пр.Механика 2 БЫКОВ А.В.  а.722   </FONT></TD>
-<TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">лек.Механика 2 БЫКОВ А.В.  а.722   </FONT></TD>
-<TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">пр.Экология ЖАРНИКОВА Е.В.  а.8241 экол   </FONT></TD>
-<TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">лек.Гидромеханика КОТОВА Т.И.  а.8111а   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">_     </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
@@ -130,13 +130,13 @@ HTML = """
 <TR><TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <B><I><FONT FACE="Arial" SIZE=2><P ALIGN="CENTER">Птн</B></I></FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">пр.Военная кафедра- 1 п/г ВК 5  а.15-098   </FONT></TD>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">пр.Биология СОРДОНОВА Е.В.  а.8418   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">ЭК по ФКС 4 ФКС 8  а.9-Спорт4   </FONT></TD>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">пр.Основы безопасности и защиты Родины РИНЧИНОВА С.Б.  а.8240 эбж   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">пр.Военная кафедра- 1 п/г ВК 5  а.15-098   </FONT></TD>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">лек.Обществознание ЖИМБУЕВА Д.А.  а.8403   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">_     </FONT></TD>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">пр.Русский язык АНГАРХАЕВА Ю.П.  а.0425и/д   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">_     </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
@@ -149,9 +149,9 @@ HTML = """
 <TR><TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <B><I><FONT FACE="Arial" SIZE=2><P ALIGN="CENTER">Сбт</B></I></FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">лек.Сопротивление материалов АНЧИЛОЕВ Н.Н.  а.606   </FONT></TD>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">_     </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">лаб.Сопротивление материалов АНЧИЛОЕВ Н.Н.  а.606   </FONT></TD>
+<FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">_     </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <FONT FACE="Arial" SIZE=1><P ALIGN="CENTER">_     </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
@@ -168,13 +168,13 @@ HTML = """
 <TR><TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <B><I><FONT FACE="Arial" SIZE=2 COLOR="#0000ff"><P ALIGN="CENTER">Пнд</B></I></FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> лек.Экология ЖАРНИКОВА Е.В.  а.8241 экол   </FONT></TD>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> Физическая культура и спорт ФКС 12  а.9-Спорт2   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> пр.Экология ЖАРНИКОВА Е.В.  а.8241 экол   </FONT></TD>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> лек.Обществознание ЖИМБУЕВА Д.А.  а.8403   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> ЭК по ФКС 4 ФКС 8  а.9-Спорт4   </FONT></TD>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> лек.Математика БУДАЕВА Л.Ж.  а.0310   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> _     </FONT></TD>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> пр.Иностранный язык- 1 п/г ЦЫБИКОВА Л.Б.  а.15-351   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> _     </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
@@ -187,9 +187,9 @@ HTML = """
 <TR><TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <B><I><FONT FACE="Arial" SIZE=2 COLOR="#0000ff"><P ALIGN="CENTER">Втр</B></I></FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> _     </FONT></TD>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> лаб.Химия СЯЧИНОВА Н.В.  а.8402   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> _     </FONT></TD>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> лек.Русский язык АНГАРХАЕВА Ю.П.  а.0100   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> _     </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
@@ -206,13 +206,13 @@ HTML = """
 <TR><TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <B><I><FONT FACE="Arial" SIZE=2 COLOR="#0000ff"><P ALIGN="CENTER">Срд</B></I></FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> лек.ЭД 3 Оценка профессиональных рисков  ПЛИШКИНА О.В.  а.8240 эбж   </FONT></TD>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> _     </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> пр.ЭД 3 Оценка профессиональных рисков  ПЛИШКИНА О.В.  а.8240 эбж   </FONT></TD>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> лек.Литература МОЛОНОВА Л.Б.  а.0302и/д   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> пр.Гидромеханика КОТОВА Т.И.  а.8111а   </FONT></TD>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> пр.Математика БУДАЕВА Л.Ж.  а.0327   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> лек.Гидрогеология ПЛЮСНИН А.М.  а.8230   </FONT></TD>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> пр.Иностранный язык- 2 п/г ЦЫБИКОВА Л.Б.  а.722   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> _     </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
@@ -225,15 +225,15 @@ HTML = """
 <TR><TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <B><I><FONT FACE="Arial" SIZE=2 COLOR="#0000ff"><P ALIGN="CENTER">Чтв</B></I></FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> пр.Обществознание ЖИМБУЕВА Д.А.  а.0328   </FONT></TD>
+<TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> пр.Математика БУДАЕВА Л.Ж.  а.0100   </FONT></TD>
+<TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> лек.Биология СОРДОНОВА Е.В.  а.8402   </FONT></TD>
+<TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> _     </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> пр.Экология ЖАРНИКОВА Е.В.  а.8241 экол   </FONT></TD>
-<TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> пр.ЭД 3 Оценка профессиональных рисков  ПЛИШКИНА О.В.  а.8240 эбж   </FONT></TD>
-<TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> лаб.Механика 2 БЫКОВ А.В.  а.720   </FONT></TD>
-<TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> пр.Механика 2 БЫКОВ А.В.  а.726-2 ТМиОК   </FONT></TD>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> _     </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> _     </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
@@ -244,13 +244,13 @@ HTML = """
 <TR><TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <B><I><FONT FACE="Arial" SIZE=2 COLOR="#0000ff"><P ALIGN="CENTER">Птн</B></I></FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> пр.Военная кафедра- 1 п/г ВК 5  а.15-098   </FONT></TD>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> пр.Родная литература АНГАРХАЕВА Ю.П.  а.0426   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> ЭК по ФКС 4 ФКС 8  а.9-Спорт4   </FONT></TD>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> пр.История МИХЕЕВ Б.В.  а.707   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> пр.Военная кафедра- 1 п/г ВК 5  а.15-098   </FONT></TD>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> лек.География ФЕДОРОВА И.Э.  а.15-466   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> _     </FONT></TD>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> лаб.Основы проект. деят-ти ЦЫБИКОВА Н.Ж.  а.0100   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> _     </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
@@ -263,11 +263,11 @@ HTML = """
 <TR><TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <B><I><FONT FACE="Arial" SIZE=2 COLOR="#0000ff"><P ALIGN="CENTER">Сбт</B></I></FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> лек.Сопротивление материалов АНЧИЛОЕВ Н.Н.  а.606   </FONT></TD>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> лаб.Информатика- 2 п/г ЦЫРЕНОВА АЮ.А  а.1-17д/кл   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> пр.Сопротивление материалов АНЧИЛОЕВ Н.Н.  а.606   </FONT></TD>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> лек.Информатика ЦЫРЕНОВА АЮ.А  а.1-37и/д   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
-<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> _     </FONT></TD>
+<FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> лаб.Информатика- 1 п/г ЦЫРЕНОВА АЮ.А  а.1-17д/кл   </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>
 <FONT FACE="Arial" SIZE=1 COLOR="#0000ff"><P ALIGN="CENTER"> _     </FONT></TD>
 <TD WIDTH="11%" VALIGN="TOP" HEIGHT=28>

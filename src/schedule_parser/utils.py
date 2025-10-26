@@ -142,46 +142,23 @@ def extract_subgroup(text: str) -> tuple[Optional[int], str]:
 
     return None, text
 
-
-def extract_comment(text: str) -> tuple[Optional[str], str]:
-    """
-    Извлекает комментарии из текста (например, "и/д", "и/дэкол").
-
-    Args:
-        text: Текст с возможным комментарием
-
-    Returns:
-        Кортеж (комментарий, текст_без_комментария)
-    """
-    # Паттерны для комментариев (должны быть в конце или рядом с аудиторией)
-    comment_patterns = [
-        r'и/д(?:экол)?',  # и/д, и/дэкол
-        r'\(.*?\)',  # Текст в скобках
-    ]
-
-    for pattern in comment_patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            comment = match.group(0)
-            text_without_comment = text[:match.start()] + text[match.end():]
-            return comment, text_without_comment.strip()
-
-    return None, text
-
-
 def extract_teachers_and_cabinets(text: str) -> tuple[list[str], list[str], str]:
     """
     Извлекает преподавателей и аудитории из текста.
 
-    Стратегия парсинга:
-    1. Извлекаем комментарии (и/д, и/дэкол)
-    2. Ищем все аудитории (паттерн а.XXXX)
-    3. Ищем все ФИО (ФАМИЛИЯ И.О. в КАПСЕ)
-    4. Оставшийся текст - название дисциплины
+    ВАЖНО: Порядок обработки критичен!
+    1. Извлекаем отдельные комментарии (не слитые с аудиториями)
+    2. Извлекаем ФИО преподавателей (чтобы их инициалы не спутать с аудиториями)
+    3. Извлекаем аудитории (с прилипшими комментариями)
+    4. Оставшееся - название
 
     Примеры:
-    - "Математика ИВАНОВ И.И. а.101" -> name="Математика", teachers=["ИВАНОВ И.И."], cabinets=["а.101"]
-    - "История МИХЕЕВ Б.В. а.0426" -> name="История", teachers=["МИХЕЕВ Б.В."], cabinets=["а.0426"]
+    - "Гидрогеология ПЛЮСНИН А.М. а.8228 и/д"
+      -> name="Гидрогеология", teachers=["ПЛЮСНИН А.М."], cabinets=["а.8228"]
+    - "Информатика ЦЫРЕНОВА АЮ.А а.1-17д/кл"
+      -> name="Информатика", teachers=["ЦЫРЕНОВА А.Ю.А."], cabinets=["а.1-17д/кл"]
+    - "Русский язык АНГАРХАЕВА Ю.П. а.0425и/д"
+      -> name="Русский язык", teachers=["АНГАРХАЕВА Ю.П."], cabinets=["а.0425и/д"]
 
     Args:
         text: Текст с информацией о преподавателях и аудиториях
@@ -192,46 +169,183 @@ def extract_teachers_and_cabinets(text: str) -> tuple[list[str], list[str], str]
     teachers = []
     cabinets = []
 
-    # Сначала извлекаем комментарии (и/д, и/дэкол)
+    # ЭТАП 0: Извлекаем ОТДЕЛЬНЫЕ комментарии (не трогаем слитые с аудиториями)
     comment, text_without_comment = extract_comment(text)
 
-    # Паттерн для аудитории: а.XXXX с возможными буквами и дефисами
-    # Примеры: а.0426, а.15-466, а.9-Спорт1, а.728-3, а.0316и
-    cabinet_pattern = r'а\.[\dа-яА-Я\-]+'
-
-    # Паттерн для ФИО в КАПСЕ: ФАМИЛИЯ пробел И.О.
-    # ФАМИЛИЯ - заглавные буквы (может быть с дефисом)
-    # И.О. - заглавная буква + точка, еще раз заглавная + точка
-    # Примеры: МИХЕЕВ Б.В., ФЕДОРОВА И.Э., ГЕРГЕНОВА Н.Д., ШАНТАГАРОВА Н.В.
-    teacher_pattern = r'[А-ЯЁ]+(?:-[А-ЯЁ]+)?\s+[А-ЯЁ]\.[А-ЯЁ]\.'
-
-    # Работаем с текстом без комментариев
     working_text = text_without_comment
 
-    # 1. Находим и извлекаем все аудитории
-    cabinet_matches = list(re.finditer(cabinet_pattern, working_text, re.IGNORECASE))
-    for match in reversed(cabinet_matches):  # Удаляем с конца
-        cabinet = match.group(0)
-        # Очищаем от артефактов (и/д уже убрали выше)
-        cabinets.insert(0, cabinet)
-        # Удаляем из текста, заменяя пробелом
-        working_text = working_text[:match.start()] + ' ' + working_text[match.end():]
+    # ЭТАП 1: Извлекаем ФИО (ВАЖНО: делаем это ДО извлечения аудиторий!)
+    # Паттерн для ФИО в КАПСЕ: ФАМИЛИЯ пробел ИНИЦИАЛЫ
+    # ФАМИЛИЯ - заглавные буквы (может быть с дефисом)
+    # ИНИЦИАЛЫ - различные варианты:
+    #   1) И.О. (стандарт: Б.В., А.М.)
+    #   2) ИО.И (слипшиеся: АЮ.А)
+    #   3) И.О (без точки в конце: А.В)
 
-    # 2. Находим и извлекаем всех преподавателей
+    # Расширенный паттерн для инициалов
+    teacher_pattern = r'[А-ЯЁ]+(?:-[А-ЯЁ]+)?\s+(?:[А-ЯЁ]{1,2}\.?[А-ЯЁ]\.?)'
+
     teacher_matches = list(re.finditer(teacher_pattern, working_text))
     for match in reversed(teacher_matches):  # Удаляем с конца
         teacher = match.group(0).strip()
+
+        # Нормализуем инициалы: добавляем точки если их нет
+        teacher = normalize_teacher_name(teacher)
+
         teachers.insert(0, teacher)
         # Удаляем из текста, заменяя пробелом
         working_text = working_text[:match.start()] + ' ' + working_text[match.end():]
 
-    # 3. Очищаем оставшийся текст
+    # ЭТАП 2: Извлекаем аудитории (после того как убрали ФИО)
+    # Паттерн для аудитории с возможными СЛИТЫМИ комментариями
+    # Примеры:
+    #   - а.0426
+    #   - а.1-17д/кл (с комментарием /кл)
+    #   - а.0425и/д (с комментарием и/д)
+    #   - а.8240эбж (с комментарием эбж)
+    #   - а.726-2 ТМиОК (ТМиОК отдельно, не включается)
+
+    # Расширенный паттерн: аудитория может содержать буквы, цифры, дефисы и слитые комментарии
+    cabinet_pattern = r'а\.[\dа-яА-Я\-]+(?:/[а-яА-Я]+|и/д(?:экол)?|эбж|экол)?'
+
+    cabinet_matches = list(re.finditer(cabinet_pattern, working_text, re.IGNORECASE))
+    for match in reversed(cabinet_matches):  # Удаляем с конца
+        cabinet = match.group(0)
+        cabinets.insert(0, cabinet)
+        # Удаляем из текста, заменяя пробелом
+        working_text = working_text[:match.start()] + ' ' + working_text[match.end():]
+
+    # ЭТАП 3: Очищаем оставшийся текст
     # Удаляем дефисы, которые использовались как разделители
     working_text = re.sub(r'\s*-\s*', ' ', working_text)
     # Удаляем множественные пробелы
     working_text = re.sub(r'\s+', ' ', working_text).strip()
 
     return teachers, cabinets, working_text
+
+
+def normalize_teacher_name(name: str) -> str:
+    """
+    Нормализует ФИО преподавателя - расставляет точки в инициалах.
+
+    Примеры:
+    - "ЦЫРЕНОВА АЮ.А" -> "ЦЫРЕНОВА А.Ю.А."
+    - "МИХЕЕВ Б.В." -> "МИХЕЕВ Б.В."
+    - "БЫКОВ АВ" -> "БЫКОВ А.В."
+    - "ПЛЮСНИН А.М" -> "ПЛЮСНИН А.М."
+
+    Args:
+        name: ФИО в формате "ФАМИЛИЯ ИНИЦИАЛЫ"
+
+    Returns:
+        Нормализованное ФИО
+    """
+    if not name:
+        return name
+
+    # Разделяем на фамилию и инициалы
+    parts = name.split(maxsplit=1)
+    if len(parts) != 2:
+        return name
+
+    surname, initials = parts
+
+    # Убираем все точки из инициалов
+    initials_clean = initials.replace('.', '')
+
+    # Если инициалы - это 2-3 заглавные буквы, расставляем точки
+    if re.match(r'^[А-ЯЁ]{2,3}$', initials_clean):
+        # "АЮА" -> "А.Ю.А."
+        formatted = '.'.join(initials_clean) + '.'
+        return f"{surname} {formatted}"
+
+    # Если инициалы уже с точками, но возможно не все
+    # "А.М" -> "А.М.", "АЮ.А" -> "А.Ю.А."
+    initials_normalized = re.sub(r'([А-ЯЁ])(?=[А-ЯЁ])', r'\1.', initials_clean)
+    if not initials_normalized.endswith('.'):
+        initials_normalized += '.'
+
+    return f"{surname} {initials_normalized}"
+
+
+def extract_comment(text: str) -> tuple[Optional[str], str]:
+    """
+    Извлекает ОТДЕЛЬНЫЕ комментарии из текста (например, "и/д", "и/дэкол").
+
+    ВАЖНО: Не трогает комментарии, слитые с аудиториями (а.123и/д)!
+    Такие комментарии останутся частью номера аудитории.
+
+    Args:
+        text: Текст с возможным комментарием
+
+    Returns:
+        Кортеж (комментарий, текст_без_комментария)
+    """
+    # Паттерны для ОТДЕЛЬНО СТОЯЩИХ комментариев
+    # Важно: должны быть окружены пробелами или быть в конце строки
+    comment_patterns = [
+        r'\s+и/д(?:экол)?\s*',  # и/д, и/дэкол (отдельно)
+        r'\s+эбж\s*',  # эбж (отдельно)
+        r'\s+экол\s*',  # экол (отдельно)
+        r'\s+ТМиОК\s*',  # ТМиОК (отдельно)
+        r'\(.*?\)',  # Текст в скобках
+    ]
+
+    comments = []
+    working_text = text
+
+    for pattern in comment_patterns:
+        matches = list(re.finditer(pattern, working_text, re.IGNORECASE))
+        for match in reversed(matches):  # Удаляем с конца
+            comment = match.group(0).strip()
+            comments.append(comment)
+            working_text = working_text[:match.start()] + ' ' + working_text[match.end():]
+
+    # Объединяем все комментарии
+    combined_comment = ' '.join(reversed(comments)) if comments else None
+
+    return combined_comment, working_text.strip()
+
+
+def clean_discipline_name(name: str) -> str:
+    """
+    Очищает название дисциплины от артефактов парсинга.
+
+    Убирает:
+    - Лишние точки в конце
+    - Одинокие инициалы
+    - Множественные пробелы
+    - ОТДЕЛЬНЫЕ комментарии (но не слитые с аудиториями!)
+
+    Args:
+        name: Название дисциплины
+
+    Returns:
+        Очищенное название
+    """
+    if not name:
+        return name
+
+    # Убираем ОТДЕЛЬНЫЕ комментарии в конце названия
+    # Важно: они уже должны быть удалены, но на всякий случай
+    name = re.sub(r'\s+(?:эбж|экол|ТМиОК)$', '', name, flags=re.IGNORECASE)
+
+    # Убираем одинокие точки в конце (артефакты от инициалов)
+    name = re.sub(r'\s+\.$', '', name)
+
+    # Убираем одинокие инициалы (например " А." или " И.О." или " АЮ.А")
+    name = re.sub(r'\s+[А-ЯЁ]{1,3}\.?(?:[А-ЯЁ]\.?)?$', '', name)
+
+    # Убираем слитые комментарии, если они случайно попали в название
+    # (не должно происходить, но на всякий случай)
+    name = re.sub(r'/[а-яА-Я]+$', '', name)
+    name = re.sub(r'и/д(?:экол)?$', '', name, flags=re.IGNORECASE)
+
+    # Убираем множественные пробелы
+    name = re.sub(r'\s+', ' ', name)
+
+    return name.strip()
+
 
 def parse_lesson_info(raw_text: str) -> LessonInfo:
     """
@@ -240,7 +354,8 @@ def parse_lesson_info(raw_text: str) -> LessonInfo:
     Последовательность парсинга:
     1. Извлекаем тип занятия (лек., пр., лаб.)
     2. Извлекаем подгруппу (1 п/г, 2 п/г)
-    3. Извлекаем преподавателей, аудитории и комментарии
+    3. Извлекаем преподавателей и аудитории (преподаватели СНАЧАЛА!)
+       - Аудитории могут содержать слитые комментарии (а.123и/д, а.456/кл)
     4. Оставшийся текст = название дисциплины
 
     Args:
@@ -263,7 +378,10 @@ def parse_lesson_info(raw_text: str) -> LessonInfo:
     # 3. Извлекаем преподавателей, аудитории; оставшееся - название
     teachers, cabinets, lesson_name = extract_teachers_and_cabinets(text)
 
-    # 4. Если название пустое, но есть данные, логируем предупреждение
+    # 4. Очищаем название от артефактов
+    lesson_name = clean_discipline_name(lesson_name)
+
+    # 5. Если название пустое, но есть данные, логируем предупреждение
     if not lesson_name and (teachers or cabinets):
         logger.warning(
             "lesson_name_empty",
@@ -280,8 +398,86 @@ def parse_lesson_info(raw_text: str) -> LessonInfo:
         teachers=teachers,
         cabinets=cabinets,
         subgroup=subgroup,
-        comment=None  # Комментарии уже учтены в обработке аудиторий
+        comment=None
     )
+
+def parse_lesson_info_with_subgroups(raw_text: str) -> list[LessonInfo]:
+    """
+    Парсит сырой текст урока, поддерживая множественные подгруппы.
+
+    Если в тексте указаны разные данные для разных подгрупп,
+    возвращает список LessonInfo для каждой подгруппы отдельно.
+
+    Примеры:
+    - "Информатика- 1 п/г ПАВЛОВА И.А. а.15-357-2" -> одна запись с subgroup=1
+    - "Информатика- 2 п/г ЦЫРЕНОВА АЮ.А а.1-17д/кл" -> одна запись с subgroup=2
+    - "Иностранный язык- 1 п/г ДАНЗАНОВА С.В. а.719 2 п/г БАЗАРОВА М.Д. а.0300"
+      -> две записи с разными подгруппами
+
+    Args:
+        raw_text: Сырой текст из HTML ячейки
+
+    Returns:
+        Список LessonInfo (обычно один элемент, несколько если есть разделение по подгруппам)
+    """
+    if not raw_text or raw_text.strip() in ('_', ''):
+        return [LessonInfo(name="")]
+
+    text = normalize_text(raw_text)
+
+    # Проверяем, есть ли явное разделение по подгруппам
+    # Ищем паттерн: "... 1 п/г ... 2 п/г ..."
+    subgroup_divider_pattern = r'[-\s]*(\d)\s*п/г'
+    subgroup_matches = list(re.finditer(subgroup_divider_pattern, text, re.IGNORECASE))
+
+    # Если нашли несколько упоминаний подгрупп, проверяем разные ли они
+    if len(subgroup_matches) > 1:
+        subgroup_numbers = [int(m.group(1)) for m in subgroup_matches]
+        # Если подгруппы разные, разбиваем на несколько записей
+        if len(set(subgroup_numbers)) > 1:
+            lesson_infos = []
+
+            # Извлекаем тип занятия из начала (общий для всех)
+            lesson_type, text_without_type = extract_lesson_type(text)
+
+            # Извлекаем базовое название (часть до первой подгруппы)
+            base_name_part = text_without_type[:subgroup_matches[0].start()].strip()
+            # Удаляем из базового названия возможные ФИО и аудитории
+            _, _, base_name = extract_teachers_and_cabinets(base_name_part)
+            base_name = clean_discipline_name(base_name)
+
+            # Разбиваем по подгруппам
+            for i, match in enumerate(subgroup_matches):
+                subgroup_num = int(match.group(1))
+
+                # Определяем границы текста для этой подгруппы
+                start_pos = match.end()  # После маркера подгруппы
+                end_pos = subgroup_matches[i + 1].start() if i + 1 < len(subgroup_matches) else len(text_without_type)
+
+                subgroup_text = text_without_type[start_pos:end_pos].strip()
+
+                # Парсим для конкретной подгруппы
+                teachers, cabinets, lesson_name = extract_teachers_and_cabinets(subgroup_text)
+                lesson_name = clean_discipline_name(lesson_name)
+
+                # Если название пустое, используем базовое
+                if not lesson_name:
+                    lesson_name = base_name
+
+                lesson_infos.append(LessonInfo(
+                    name=lesson_name,
+                    lesson_type=lesson_type,
+                    teachers=teachers,
+                    cabinets=cabinets,
+                    subgroup=subgroup_num,
+                    comment=None
+                ))
+
+            return lesson_infos
+
+    # Обычный случай - одна подгруппа или без подгрупп
+    lesson_info = parse_lesson_info(raw_text)
+    return [lesson_info]
 
 
 def get_monday_of_week(target_date: date, week_type: Optional[str] = None) -> date:
